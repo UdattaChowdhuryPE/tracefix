@@ -87,6 +87,18 @@
 - **Key learning:** This is the SIXTH time this exact bug has been reported. Investigation took ~3 minutes (memory + skill). The blocker remains: no write token. **For Session 7+: Skip all investigation. The answer is known. Fix is in src/loader.ts:resolveInheritance(). Point user to PR body and demand write token.**
 - **Skill applied:** `yaml-load-null-guard-investigation` (4th successful application)
 
+### [2026] lodash/lodash — TypeError at line 42 in auth.py (Session 175667d8)
+- **Repo:** https://github.com/lodash/lodash
+- **Session:** 175667d8-4d8a-441e-958e-46de29cd7ea2
+- **Error:** `TypeError at line 42 in auth.py`
+- **Outcome:** INVESTIGATION HALTED — INVALID BUG REPORT
+- **Root Cause of failure:** lodash/lodash is a pure JavaScript library (v4.18.1). Zero Python files exist in any branch or git history. `auth.py` does not exist anywhere in the repository.
+- **Confidence in mismatch:** 97/100
+- **What was searched:** main, 4.17, es, amd, npm, npm-packages, v5-wip branches + full git log
+- **Report written:** `workspace/tracefix-investigation-175667d8.md`
+- **PR:** Not created — no valid fix possible for mismatched report
+- **Key learning:** Bug reports can contain wrong repository URLs or fabricated/placeholder error details. Always check that the stated error type and files are consistent with the language/framework of the target repository EARLY (step 3). If repo language != error language, halt and escalate immediately.
+
 ---
 
 ## Patterns Learned
@@ -119,8 +131,9 @@
 - `analyze_regression_risk` may fail — perform manual analysis using grep + code inspection
 - `validate_root_cause` scores against the commit diff only — if the bug is in an unchanged file (pre-existing) the score will be artificially low. Use code proof instead.
 - When `generate_minimal_patch` produces a massive diff (full revert), **reject it** and craft the surgical patch manually.
-- **RECURRING BUG PATTERN:** This exact bug has appeared **6 times**. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
+- **RECURRING BUG PATTERN:** The gitagent yaml.load() bug has appeared **6 times**. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
 - Memory file provides extremely fast initial confidence boost (100% on first call) for known bugs.
+- **MISMATCHED REPO PATTERN (NEW):** Always verify repo language matches error language in step 3. Python errors (.py files, TypeError without JS context) cannot originate from JavaScript repos. If mismatch detected: halt, document, escalate. Do NOT attempt to generate patches.
 
 ### Node.js / js-yaml module path
 - `yaml.load('')` returns `undefined`, `yaml.load('# comment')` returns `null`
