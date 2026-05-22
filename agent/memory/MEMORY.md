@@ -31,10 +31,32 @@
   + }
   ```
 
+### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 3 / 1ce5a497)
+- **Repo:** https://github.com/open-gitagent/gitagent
+- **Session:** 1ce5a497-af86-4202-a4ff-d0122f656ce8
+- **Error:** `TypeError: Cannot read property 'tools' of undefined` at `Agent.initializeTools (src/agent/core.ts:142)`
+- **Root Cause:** IDENTICAL to Sessions 1 & 2 — yaml.load() null return in src/loader.ts:resolveInheritance() line 193
+- **Confidence:** 99/100
+- **Branch:** `tracefix/23bb53a` (local only — no GitHub write token)
+- **Commit:** `487879b`
+- **PR body:** `workspace/tracefix-pr-1ce5a497.md`
+- **Key learning:** This is the THIRD time this exact bug has been reported in this repo. The fix has been ready twice before but never merged (no write token). The bug persists because the PR was never pushed upstream.
+- **Skill applied:** `yaml-load-null-guard-investigation` (confidence 1, first actual use)
+- **Tool improvements:** Memory recognition was instant — within first tool call, had 85% confidence. Full investigation completed efficiently following established methodology.
+- **Patch (5 lines, 1 file):**
+  ```diff
+  + // Guard: yaml.load() returns null/undefined for empty or comment-only YAML without throwing.
+  + // A null parentManifest would crash on .tools access below — TypeError: Cannot read property 'tools' of undefined.
+  + if (!parentManifest) {
+  +     return { manifest, parentRules: "" };
+  + }
+  ```
+
 ## Patterns Learned
 
 ### js-yaml null returns
-- `yaml.load("")` returns `null` — never throws for empty/null/comment-only YAML
+- `yaml.load("")` returns `undefined` — never throws for empty input
+- `yaml.load("# comment")` returns `null` — never throws for comment-only YAML
 - Always guard `yaml.load()` return values with null checks when the result is used directly
 - Pattern: `const parsed = yaml.load(raw); if (!parsed) { /* handle null */ }`
 
@@ -60,3 +82,9 @@
 - `analyze_regression_risk` may fail — perform manual analysis using grep + code inspection
 - `validate_root_cause` scores against the commit diff only — if the bug is in an unchanged file (pre-existing) the score will be artificially low. Use code proof instead.
 - When `generate_minimal_patch` produces a massive diff (full revert), **reject it** and craft the surgical patch manually.
+- **RECURRING BUG PATTERN:** If memory shows same bug reported 3+ times with no write token, note that fix is likely never getting merged. Consider alternative approaches (documentation, issue filing via API without token, etc.)
+- Memory file provides extremely fast initial confidence boost (85%+ on first call) for known bugs.
+
+### Node.js / js-yaml module path
+- `yaml.load('')` returns `undefined`, `yaml.load('# comment')` returns `null`
+- Global npm root: `$(npm root -g)/js-yaml` — can test directly with `node -e "const yaml = require('$(npm root -g)/js-yaml');..."`
