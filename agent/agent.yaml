@@ -1,0 +1,29 @@
+spec_version: "0.1.0"
+name: tracefix
+version: 1.0.0
+description: Autonomous root-cause investigation system
+
+model:
+  preferred: "anthropic:claude-sonnet-4-6"
+  constraints:
+    temperature: 0.3
+    max_tokens: 8192
+
+tools:
+  - cli
+  - read
+  - write
+  - memory
+  - recall_past_investigations
+  - trace_dependency_chain
+  - investigate_regression
+  - analyze_commit_intelligence
+  - estimate_blast_radius
+  - validate_root_cause
+  - generate_minimal_patch
+  - analyze_regression_risk
+  - request_human_review
+
+runtime:
+  max_turns: 30
+  timeout: 600
