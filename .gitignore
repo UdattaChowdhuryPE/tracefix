@@ -41,3 +41,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Gitclaw runtime state (generated, not source)
+agent/.gitagent/
+agent/workspace/
