@@ -2,7 +2,7 @@
 
 ## Past Investigations
 
-### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined
+### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 1)
 - **Repo:** https://github.com/open-gitagent/gitagent
 - **Session:** 204ad5b5-443f-49cb-8a24-b43997647c10
 - **Error:** `TypeError: Cannot read property 'tools' of undefined` at `Agent.initializeTools`
@@ -10,6 +10,26 @@
 - **Fix:** 6-line null guard after `yaml.load()` in `resolveInheritance()` — if null, skip inheritance gracefully.
 - **Branch:** `tracefix/23bb53a`
 - **Associated commit:** `23bb53a` — package bump `@mariozechner/pi-agent-core` `^0.55.4 → ^0.70.2` + OTel instrumentation
+
+### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 2 / f5daac41)
+- **Repo:** https://github.com/open-gitagent/gitagent
+- **Session:** f5daac41-eb44-40c4-a7a2-8c3a136fdb47
+- **Error:** `TypeError: Cannot read property 'tools' of undefined` at `Agent.initializeTools (src/agent/core.ts:142)`
+- **Stack trace paths:** `src/agent/core.ts`, `src/agent/index.ts` — these are **INTERNAL paths inside `@mariozechner/pi-agent-core`**, NOT files in the gitclaw repo itself.
+- **Root Cause:** Same as Session 1 — `yaml.load()` in `src/loader.ts:resolveInheritance()` (line 193) returns null for empty/comment-only parent `agent.yaml`. No null guard existed.
+- **Trigger:** `23bb53a` bumped `@mariozechner/pi-agent-core` `^0.55.4 → ^0.70.2`. New Agent eagerly calls `initializeTools()` at constructor time (v0.55.4 deferred), surfacing the pre-existing null-propagation bug.
+- **Fix Applied:** 6-line null guard added to `src/loader.ts:resolveInheritance()` after `yaml.load()` call. Returns `{ manifest, parentRules: "" }` on null — identical to I/O error path.
+- **Confidence:** 97/100
+- **Branch:** `tracefix/23bb53a` (local only — no GitHub write token provided)
+- **PR body:** `workspace/tracefix-pr-f5daac41.md`
+- **Patch (6 lines, 1 file):**
+  ```diff
+  + // Guard: yaml.load() returns null for empty/comment-only YAML without throwing.
+  + // A null parentManifest would crash on .tools access below.
+  + if (!parentManifest) {
+  +     return { manifest, parentRules: "" };
+  + }
+  ```
 
 ## Patterns Learned
 
@@ -21,6 +41,7 @@
 ### Agent initialization errors
 - "Cannot read property X of undefined/null" in agent init usually means config object parsing failed silently
 - YAML loading is a common silent failure point — check null returns, not just exceptions
+- **Stack trace paths in `src/agent/core.ts` or `src/agent/index.ts` are INTERNAL to `@mariozechner/pi-agent-core`** — the bug lives in gitclaw's `src/loader.ts`
 
 ### pi-agent-core API changes (v0.55.4 → v0.70.2)
 - `AgentState.streamMessage` renamed to `streamingMessage`
@@ -30,3 +51,12 @@
 - `StringEnum` removed from `@mariozechner/pi-ai` — replace with `Type.Union([Type.Literal(...)])`
 - New `toolExecution: "parallel" | "sequential"` mode (default: parallel)
 - `beforeToolCall` / `afterToolCall` hooks added to AgentOptions
+- **v0.70.2 NEW:** `Agent` constructor calls `initializeTools()` eagerly (v0.55.4 deferred it) — exposes pre-existing null/undefined bugs in tool setup
+
+### Investigation methodology notes
+- `recall_past_investigations` tool may fail with exit code 1 — fall back to memory file
+- `trace_dependency_chain` may return empty frames for simple TypeScript stacks — reason manually
+- `investigate_regression` (git bisect) may fail if repro script has env issues — document and proceed
+- `analyze_regression_risk` may fail — perform manual analysis using grep + code inspection
+- `validate_root_cause` scores against the commit diff only — if the bug is in an unchanged file (pre-existing) the score will be artificially low. Use code proof instead.
+- When `generate_minimal_patch` produces a massive diff (full revert), **reject it** and craft the surgical patch manually.
