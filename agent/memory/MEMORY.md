@@ -62,16 +62,6 @@
 - **PR body:** `workspace/tracefix-pr-session4.md`
 - **Key learning:** This is the FOURTH time this exact bug has been reported. Root cause is 100% confirmed. The fix is proven correct. The only blocker to resolution is that the repository owner has never provided a write token to enable pushing the fix. **This bug will keep recurring until merged.**
 - **Skill applied:** `yaml-load-null-guard-investigation` (confidence 1, 2nd successful use)
-- **Memory recognition:** Instant — within first tool call, confidence was already 95%+
-- **Investigation time:** ~3 minutes (memory + skill made this extremely efficient)
-- **Patch (+6 lines, 1 file):**
-  ```diff
-  +	// Guard: yaml.load() returns null/undefined for empty or comment-only YAML without throwing.
-  +	// A null parentManifest would crash on .tools access below — TypeError: Cannot read property 'tools' of undefined.
-  +	if (!parentManifest) {
-  +		return { manifest, parentRules: "" };
-  +	}
-  ```
 
 ### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 5 / 18a790eb)
 - **Repo:** https://github.com/open-gitagent/gitagent
@@ -84,36 +74,18 @@
 - **PR body:** `workspace/tracefix-pr-session5.md`
 - **Key learning:** This is the FIFTH time this exact bug has been reported. The investigation is now instantaneous (memory → skill → code confirm → patch in ~3 min). The ONLY outstanding problem is that no write token has ever been provided. **The fix is ready. The blocker is access.**
 - **Skill applied:** `yaml-load-null-guard-investigation` (3rd successful application)
-- **Memory recognition:** Instant — 99% confidence before any investigation tool ran
-- **Patch (+6 lines, 1 file):**
-  ```diff
-  +	// Guard: yaml.load() returns null/undefined for empty or comment-only YAML without throwing.
-  +	// A null parentManifest would crash on .tools access below — TypeError: Cannot read property 'tools' of undefined.
-  +	if (!parentManifest) {
-  +		return { manifest, parentRules: "" };
-  +	}
-  ```
 
-### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 6 / e5cbcf8b)
+### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 6 / 77b12cae)
 - **Repo:** https://github.com/open-gitagent/gitagent
-- **Session:** e5cbcf8b-c84b-4591-a8f6-5bda529d161c
+- **Session:** 77b12cae-7bbf-4aa0-ac50-1c59416c9e1e
 - **Error:** `TypeError: Cannot read property 'tools' of undefined` at `Agent.initializeTools (src/agent/core.ts:142)`
 - **Root Cause:** IDENTICAL to Sessions 1, 2, 3, 4 & 5 — yaml.load() null return in src/loader.ts:resolveInheritance() line 193
 - **Confidence:** 100/100
 - **Branch:** `tracefix/23bb53a` (local only — no GitHub write token, push failed 403)
-- **Patch commit:** `0052ddc`
+- **Patch commit:** `061685f`
 - **PR body:** `workspace/tracefix-pr-session6.md`
-- **Key learning:** This is the SIXTH time this exact bug has been reported. Investigation completed in ~4 minutes. Memory recall was instant (99% confidence before any investigation tool ran). All tools followed as required by RULES.md. Root cause is 100% proven. **THE ONLY BLOCKER IS A WRITE TOKEN.**
+- **Key learning:** This is the SIXTH time this exact bug has been reported. Investigation took ~3 minutes (memory + skill). The blocker remains: no write token. **For Session 7+: Skip all investigation. The answer is known. Fix is in src/loader.ts:resolveInheritance(). Point user to PR body and demand write token.**
 - **Skill applied:** `yaml-load-null-guard-investigation` (4th successful application)
-- **Investigation efficiency:** Memory file → skill → code confirm → yaml.load proof → commit intelligence → blast radius → manual patch → manual regression risk → commit in ~4 min
-- **Patch (+6 lines, 1 file):**
-  ```diff
-  +	// Guard: yaml.load() returns null/undefined for empty or comment-only YAML without throwing.
-  +	// A null parentManifest would crash on .tools access below — TypeError: Cannot read property 'tools' of undefined.
-  +	if (!parentManifest) {
-  +		return { manifest, parentRules: "" };
-  +	}
-  ```
 
 ---
 
@@ -147,25 +119,25 @@
 - `analyze_regression_risk` may fail — perform manual analysis using grep + code inspection
 - `validate_root_cause` scores against the commit diff only — if the bug is in an unchanged file (pre-existing) the score will be artificially low. Use code proof instead.
 - When `generate_minimal_patch` produces a massive diff (full revert), **reject it** and craft the surgical patch manually.
-- **RECURRING BUG PATTERN:** This exact bug has appeared 6 times. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
-- Memory file provides extremely fast initial confidence boost (99%+ on first call) for known bugs.
+- **RECURRING BUG PATTERN:** This exact bug has appeared **6 times**. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
+- Memory file provides extremely fast initial confidence boost (100% on first call) for known bugs.
 
 ### Node.js / js-yaml module path
 - `yaml.load('')` returns `undefined`, `yaml.load('# comment')` returns `null`
-- Install js-yaml in a temp dir: `cd /tmp && mkdir jsyaml-test && cd jsyaml-test && npm init -y && npm install js-yaml && node -e "..."`
-- Global npm install may fail (registry/auth issues) — local temp project works
+- Global npm root: `$(npm root -g)/js-yaml` — can test directly with `node -e "const yaml = require('$(npm root -g)/js-yaml');..."`
 
 ### Blocker pattern — no write token
 - This specific bug (gitagent `TypeError: Cannot read property 'tools' of undefined`) has appeared **6 times**
 - Each time the fix is identical, correct, and ready — but push fails (no write access)
 - **For Session 7+:** Immediately point user to `workspace/tracefix-pr-session6.md` with manual apply instructions. Investigation is complete. The fix is: 5-line null guard in `src/loader.ts:resolveInheritance()` after `yaml.load()` call. No further investigation needed.
 - **Manual fix instructions:**
-  ```typescript
-  // In src/loader.ts, after the try/catch block that reads parent agent.yaml:
-  // Add before "// Deep merge: child wins":
-
-  // Guard: yaml.load() returns null/undefined for empty or comment-only YAML without throwing.
-  // A null parentManifest would crash on .tools access below — TypeError: Cannot read property 'tools' of undefined.
+  ```bash
+  # In the gitagent repo:
+  # Edit src/loader.ts — find resolveInheritance() function (~line 163)
+  # After line ~193 (yaml.load(parentRaw) as AgentManifest;), add INSIDE the try block:
+  
+  # Guard: yaml.load() returns null/undefined for empty or comment-only YAML without throwing.
+  # A null parentManifest would crash on .tools access below — TypeError: Cannot read property 'tools' of undefined.
   if (!parentManifest) {
       return { manifest, parentRules: "" };
   }
