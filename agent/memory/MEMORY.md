@@ -94,6 +94,21 @@
   +	}
   ```
 
+### [2026] lodash/lodash — TypeError: Cannot read property "id" of undefined at validateUser (auth.py:42) — INVALID BUG REPORT (Session bbb2d106)
+- **Repo:** https://github.com/lodash/lodash
+- **Session:** bbb2d106-554d-41aa-b709-46343ced13dd
+- **Error:** `TypeError: Cannot read property "id" of undefined at validateUser (auth.py:42)`
+- **Outcome:** ⚠️ **INVESTIGATION HALTED — INVALID/INCOMPATIBLE BUG REPORT**
+- **Confidence:** 10/100
+- **Root Cause Finding:** The stack trace is **fundamentally incompatible** with the referenced repository. Evidence:
+  1. `lodash/lodash` is a pure **JavaScript** utility library — zero Python files in its entire history
+  2. `auth.py` does not exist anywhere in the repo (confirmed with `find -name "*.py"` → 0 results)
+  3. `validateUser` function does not exist in any file (grep returns 0 results)
+  4. `TypeError: Cannot read property "id" of undefined` is **JavaScript** syntax — Python raises `AttributeError`, not this kind of TypeError
+  5. The error format mixes JavaScript error style with a Python file path — internally contradictory
+- **Action Taken:** Called `request_human_review` (confidence < 70 threshold triggered correctly). Escalated to human.
+- **Key Learning:** Bug reports can be submitted with the wrong repository URL or fabricated stack traces. Always verify that referenced files (auth.py) and functions (validateUser) actually exist in the codebase **before** running bisect or generating patches. A `find` + `grep` scan at clone time is a critical early gate.
+
 ---
 
 ## Patterns Learned
@@ -128,6 +143,7 @@
 - When `generate_minimal_patch` produces a massive diff (full revert), **reject it** and craft the surgical patch manually.
 - **RECURRING BUG PATTERN:** This exact bug has appeared 5 times. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
 - Memory file provides extremely fast initial confidence boost (99% on first call) for known bugs.
+- **NEW GATE (bbb2d106):** After cloning, ALWAYS verify that files and functions from the stack trace actually exist in the repo BEFORE running any investigation tools. A mismatched bug report wastes all downstream tool calls.
 
 ### Node.js / js-yaml module path
 - `yaml.load('')` returns `undefined`, `yaml.load('# comment')` returns `null`
@@ -148,3 +164,9 @@
       return { manifest, parentRules: "" };
   }
   ```
+
+### Invalid/fabricated bug reports
+- Stack traces can be submitted with wrong repo URLs, non-existent files, or mixed-language errors
+- `TypeError: Cannot read property X of undefined` is **JavaScript** syntax — Python raises `AttributeError`
+- Always verify: does the referenced file exist? Does the referenced function exist? Is the language consistent?
+- Early validation gate: `find <repo> -name "<file>"` and `grep -r "<function>"` immediately after clone
