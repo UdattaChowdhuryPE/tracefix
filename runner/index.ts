@@ -17,7 +17,7 @@ function emit(obj: Record<string, unknown>): void {
   process.stdout.write(JSON.stringify({ ...obj, session_id: sessionId }) + "\n");
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   // Forward PROGRESS lines from stderr to stdout as step events
   process.stderr.on("data", (chunk: Buffer) => {
     const text = chunk.toString();
@@ -51,7 +51,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  process.stderr.write(`Fatal: ${String(err)}\n`);
-  process.exit(1);
-});
+if (!process.env.VITEST) {
+  main().catch((err) => {
+    process.stderr.write(`Fatal: ${String(err)}\n`);
+    process.exit(1);
+  });
+}

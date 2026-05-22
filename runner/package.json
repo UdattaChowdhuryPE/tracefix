@@ -3,14 +3,13 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "tsx index.ts"
-  },
-  "dependencies": {
-    "gitclaw": "latest"
+    "start": "tsx index.ts",
+    "test": "vitest run"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "vitest": "^2.0.0"
   }
 }
