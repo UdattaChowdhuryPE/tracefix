@@ -73,6 +73,27 @@
   +	}
   ```
 
+### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 5 / 18a790eb)
+- **Repo:** https://github.com/open-gitagent/gitagent
+- **Session:** 18a790eb-fc73-4d8c-ab33-f141619b1d2d
+- **Error:** `TypeError: Cannot read property 'tools' of undefined` at `Agent.initializeTools (src/agent/core.ts:142)`
+- **Root Cause:** IDENTICAL to Sessions 1, 2, 3 & 4 — yaml.load() null return in src/loader.ts:resolveInheritance() line 193
+- **Confidence:** 99/100
+- **Branch:** `tracefix/23bb53a` (local only — no GitHub write token, push not attempted)
+- **Patch commit:** `0e30143`
+- **PR body:** `workspace/tracefix-pr-session5.md`
+- **Key learning:** This is the FIFTH time this exact bug has been reported. The investigation is now instantaneous (memory → skill → code confirm → patch in ~3 min). The ONLY outstanding problem is that no write token has ever been provided. **The fix is ready. The blocker is access.**
+- **Skill applied:** `yaml-load-null-guard-investigation` (3rd successful application)
+- **Memory recognition:** Instant — 99% confidence before any investigation tool ran
+- **Patch (+6 lines, 1 file):**
+  ```diff
+  +	// Guard: yaml.load() returns null/undefined for empty or comment-only YAML without throwing.
+  +	// A null parentManifest would crash on .tools access below — TypeError: Cannot read property 'tools' of undefined.
+  +	if (!parentManifest) {
+  +		return { manifest, parentRules: "" };
+  +	}
+  ```
+
 ---
 
 ## Patterns Learned
@@ -105,14 +126,25 @@
 - `analyze_regression_risk` may fail — perform manual analysis using grep + code inspection
 - `validate_root_cause` scores against the commit diff only — if the bug is in an unchanged file (pre-existing) the score will be artificially low. Use code proof instead.
 - When `generate_minimal_patch` produces a massive diff (full revert), **reject it** and craft the surgical patch manually.
-- **RECURRING BUG PATTERN:** If memory shows same bug reported 4+ times with no write token, the fix is being blocked by access issues. Escalate differently — consider suggesting the user file a GitHub issue, or give them the patch to apply manually.
-- Memory file provides extremely fast initial confidence boost (95%+ on first call) for known bugs.
+- **RECURRING BUG PATTERN:** This exact bug has appeared 5 times. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
+- Memory file provides extremely fast initial confidence boost (99% on first call) for known bugs.
 
 ### Node.js / js-yaml module path
 - `yaml.load('')` returns `undefined`, `yaml.load('# comment')` returns `null`
 - Global npm root: `$(npm root -g)/js-yaml` — can test directly with `node -e "const yaml = require('$(npm root -g)/js-yaml');..."`
 
 ### Blocker pattern — no write token
-- This specific bug (gitagent `TypeError: Cannot read property 'tools' of undefined`) has appeared 4 times
-- Each time the fix is identical, correct, and ready — but push fails with 403 (no write access)
-- **Recommended action for Session 5+:** Tell the user to apply the patch manually using the diff in workspace/tracefix-pr-session4.md, or provide a GitHub token with write access to the open-gitagent/gitagent repo
+- This specific bug (gitagent `TypeError: Cannot read property 'tools' of undefined`) has appeared **5 times**
+- Each time the fix is identical, correct, and ready — but push fails (no write access)
+- **For Session 6+:** Immediately point user to `workspace/tracefix-pr-session5.md` with manual apply instructions. Investigation is complete. The fix is: 5-line null guard in `src/loader.ts:resolveInheritance()` after `yaml.load()` call. No further investigation needed.
+- **Manual fix instructions:**
+  ```bash
+  # In the gitagent repo:
+  # Edit src/loader.ts — after line 194 (yaml.load(parentRaw) as AgentManifest;), add:
+  
+  # Guard: yaml.load() returns null/undefined for empty or comment-only YAML without throwing.
+  # A null parentManifest would crash on .tools access below — TypeError: Cannot read property 'tools' of undefined.
+  if (!parentManifest) {
+      return { manifest, parentRules: "" };
+  }
+  ```
