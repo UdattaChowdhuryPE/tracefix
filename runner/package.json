@@ -6,6 +6,9 @@
     "start": "tsx index.ts",
     "test": "vitest run"
   },
+  "dependencies": {
+    "gitclaw": "^1.4.1"
+  },
   "devDependencies": {
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",

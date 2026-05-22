@@ -60,7 +60,10 @@ async def run_agent(
             env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            limit=10 * 1024 * 1024,  # 10 MB buffer (default 64 KB is too small)
         )
+
+        stderr_lines = []
 
         # Read stdout (NDJSON events) and stderr (PROGRESS lines) concurrently
         async def read_stdout():
@@ -96,14 +99,23 @@ async def run_agent(
                         await session_manager.broadcast(session_id, event)
                     except Exception:
                         pass
+                else:
+                    # Capture non-PROGRESS stderr for error reporting
+                    stderr_lines.append(line)
 
         await asyncio.gather(read_stdout(), read_stderr())
         await proc.wait()
 
         if proc.returncode != 0:
             session_manager.update(session_id, status="error")
+            # Include last few stderr lines in error message for diagnostics
+            detail = "\n".join(stderr_lines[-20:]) if stderr_lines else "(no stderr captured)"
             await session_manager.broadcast(
-                session_id, {"type": "error", "message": f"Agent exited with code {proc.returncode}"}
+                session_id, {
+                    "type": "error",
+                    "message": f"Agent exited with code {proc.returncode}",
+                    "detail": detail,
+                }
             )
         else:
             session_manager.update(session_id, status="complete")
