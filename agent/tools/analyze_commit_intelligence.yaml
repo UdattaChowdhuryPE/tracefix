@@ -1,0 +1,17 @@
+name: analyze_commit_intelligence
+description: Deeply analyze a commit — why it is risky, what dependencies changed, which services may be affected.
+input_schema:
+  properties:
+    repo_dir:
+      type: string
+      description: Absolute path to the cloned repo
+    commit_hash:
+      type: string
+      description: The commit hash to analyze
+    dependency_chain:
+      type: string
+      description: JSON string of the dependency chain from trace_dependency_chain
+  required: [repo_dir, commit_hash]
+implementation:
+  script: scripts/analyze_commit_intelligence.sh
+  runtime: sh

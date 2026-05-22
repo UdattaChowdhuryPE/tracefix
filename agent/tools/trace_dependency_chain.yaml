@@ -1,0 +1,14 @@
+name: trace_dependency_chain
+description: Parse a stack trace and extract the full call chain — files, functions, and line numbers from every frame.
+input_schema:
+  properties:
+    error_text:
+      type: string
+      description: Raw stack trace text
+    language:
+      type: string
+      description: Programming language (python, javascript, java, go, rust) — auto-detected if omitted
+  required: [error_text]
+implementation:
+  script: scripts/trace_dependency_chain.sh
+  runtime: sh

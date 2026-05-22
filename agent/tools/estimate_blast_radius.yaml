@@ -1,0 +1,19 @@
+name: estimate_blast_radius
+description: Before patching, estimate which modules and services would be affected if the fix is wrong or incomplete.
+input_schema:
+  properties:
+    repo_dir:
+      type: string
+      description: Absolute path to the cloned repo
+    files_to_patch:
+      type: array
+      items:
+        type: string
+      description: File paths that the patch will modify
+    dependency_chain:
+      type: string
+      description: JSON string of the dependency chain
+  required: [repo_dir, files_to_patch]
+implementation:
+  script: scripts/estimate_blast_radius.sh
+  runtime: sh

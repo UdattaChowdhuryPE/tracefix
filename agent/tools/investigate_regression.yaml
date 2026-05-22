@@ -1,0 +1,20 @@
+name: investigate_regression
+description: Run git bisect to find the first bad commit that introduced the bug. Requires a repro script that exits 1 if bug is present, 0 if absent.
+input_schema:
+  properties:
+    repo_dir:
+      type: string
+      description: Absolute path to the cloned repo
+    bad_commit:
+      type: string
+      description: Known bad commit hash (defaults to HEAD if omitted)
+    good_commit:
+      type: string
+      description: Known good commit (last tag or initial commit)
+    repro_script:
+      type: string
+      description: Shell script content that exits 1 if bug is present, 0 if absent
+  required: [repo_dir, repro_script]
+implementation:
+  script: scripts/investigate_regression.sh
+  runtime: sh

@@ -1,0 +1,19 @@
+name: generate_minimal_patch
+description: Generate the smallest possible code patch that fixes the root cause. Refuses to proceed if patch would exceed 5 files or 20 lines without justification.
+input_schema:
+  properties:
+    repo_dir:
+      type: string
+    commit_hash:
+      type: string
+      description: The offending commit to reverse/fix
+    evidence:
+      type: string
+      description: Root cause evidence from validate_root_cause
+    blast_radius:
+      type: string
+      description: JSON string from estimate_blast_radius
+  required: [repo_dir, commit_hash, evidence]
+implementation:
+  script: scripts/generate_minimal_patch.sh
+  runtime: sh

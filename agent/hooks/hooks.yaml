@@ -1,0 +1,4 @@
+hooks:
+  post_tool_use:
+    - script: post_tool_use.sh
+      description: Emit a PROGRESS line after every tool call for frontend streaming

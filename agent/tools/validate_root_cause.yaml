@@ -1,0 +1,19 @@
+name: validate_root_cause
+description: Read the offending commit diff and score confidence that it matches the current hypothesis. Returns validated=true/false and revised hypothesis if needed.
+input_schema:
+  properties:
+    repo_dir:
+      type: string
+    commit_hash:
+      type: string
+      description: The suspected offending commit
+    hypothesis:
+      type: string
+      description: Current written hypothesis about the root cause
+    dependency_chain:
+      type: string
+      description: JSON string of the dependency chain
+  required: [repo_dir, commit_hash, hypothesis]
+implementation:
+  script: scripts/validate_root_cause.sh
+  runtime: sh

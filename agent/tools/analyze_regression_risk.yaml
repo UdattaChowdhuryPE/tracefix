@@ -1,0 +1,18 @@
+name: analyze_regression_risk
+description: Pre-PR safety gate. Assess regression risk of the proposed patch — downstream callers, test coverage, risk score 0-100.
+input_schema:
+  properties:
+    repo_dir:
+      type: string
+    patch:
+      type: string
+      description: The unified diff patch to analyze
+    files_modified:
+      type: array
+      items:
+        type: string
+      description: List of file paths the patch touches
+  required: [repo_dir, patch, files_modified]
+implementation:
+  script: scripts/analyze_regression_risk.sh
+  runtime: sh

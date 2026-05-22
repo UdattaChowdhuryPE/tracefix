@@ -1,0 +1,23 @@
+name: request_human_review
+description: Pause the investigation and escalate to a human reviewer. Call when confidence < 70 or blast radius is HIGH.
+input_schema:
+  properties:
+    reason:
+      type: string
+      description: Why human review is needed
+    current_hypothesis:
+      type: string
+      description: The current hypothesis text
+    confidence:
+      type: number
+      description: Current confidence score 0-100
+    evidence_so_far:
+      type: string
+      description: Evidence gathered so far
+    session_id:
+      type: string
+      description: Current session ID for the escalation callback
+  required: [reason, confidence, session_id]
+implementation:
+  script: scripts/request_human_review.sh
+  runtime: sh
