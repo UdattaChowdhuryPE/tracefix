@@ -16,12 +16,12 @@ Given a stack trace + GitHub repo, it bisects history, validates hypotheses, and
 # One-time setup
 cp .env.example .env          # add ANTHROPIC_API_KEY
 cd runner && npm install && cd ..
-cd backend && pip install -r requirements.txt && cd ..
+cd backend && uv sync && cd ..
 cd frontend && npm install && cd ..
 chmod +x agent/tools/scripts/*.sh agent/hooks/post_tool_use.sh
 
 # Start
-cd backend && uvicorn main:app --reload --port 8000   # terminal 1
+cd backend && uv run uvicorn main:app --reload --port 8000   # terminal 1
 cd frontend && npm run dev                            # terminal 2
 ```
 
