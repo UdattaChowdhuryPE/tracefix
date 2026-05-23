@@ -3,9 +3,9 @@ name: yaml-load-null-guard-investigation
 description: Investigates and fixes TypeError crashes caused by js-yaml's yaml.load() returning null for empty/comment-only YAML files. Adds null guard after yaml.load() calls to prevent null propagation to property access. Applies to any TypeScript/JavaScript codebase using js-yaml where parsed YAML objects are used without null checks.
 learned_from: task:f5daac41-eb44-40c4-a7a2-8c3a136fdb47
 learned_at: '2026-05-22T18:25:07.234Z'
-confidence: 0.41
-usage_count: 15
-success_count: 3
+confidence: 0.57
+usage_count: 18
+success_count: 6
 failure_count: 12
 negative_examples:
   - 'Push to GitHub failed with 403 — no write token provided. Investigation fully complete and patch committed locally (72a92f5 on tracefix/23bb53a). Outcome is partial: fix ready but not merged. This is the 7th consecutive session blocked by the same access issue.'
