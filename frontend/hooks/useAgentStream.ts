@@ -40,7 +40,9 @@ export function useAgentStream(sessionId: string) {
 
   useEffect(() => {
     if (!sessionId) return;
-    const ws = new WebSocket(`ws://localhost:8000/ws/${sessionId}`);
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+    const wsUrl = backendUrl.replace(/^https/, "wss").replace(/^http/, "ws");
+    const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`);
     wsRef.current = ws;
 
     ws.onmessage = (e) => {
@@ -62,7 +64,8 @@ export function useAgentStream(sessionId: string) {
   }, [sessionId]);
 
   const resolveEscalation = async (decision: string, guidance = "") => {
-    await fetch(`http://localhost:8000/api/sessions/${sessionId}/review`, {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+    await fetch(`${backendUrl}/api/sessions/${sessionId}/review`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision, guidance }),

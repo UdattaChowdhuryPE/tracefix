@@ -4,6 +4,7 @@ from pathlib import Path
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 import asyncio
+import os
 import uuid
 from contextlib import asynccontextmanager
 
@@ -23,9 +24,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="TraceFix API", lifespan=lifespan)
 
+allowed_origins = os.environ.get("CORS_ALLOW_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

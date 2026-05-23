@@ -20,7 +20,8 @@ export default function HomePage() {
     setErr("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/sessions", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+      const res = await fetch(`${backendUrl}/api/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo_url: repoUrl, error_text: errorText, github_token: githubToken }),
@@ -28,7 +29,7 @@ export default function HomePage() {
       if (!res.ok) throw new Error(await res.text());
       const { session_id } = await res.json();
 
-      await fetch(`http://localhost:8000/api/sessions/${session_id}/run`, {
+      await fetch(`${backendUrl}/api/sessions/${session_id}/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo_url: repoUrl, error_text: errorText, github_token: githubToken }),
