@@ -60,7 +60,7 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+      <section className="min-h-[calc(100vh-64px)] max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         <div>
           <h1 className="font-[family-name:var(--font-fraunces)] text-5xl md:text-6xl font-bold leading-tight mb-6 text-balance">
             Ship Fixes in<br /><span className="text-blue-500">Minutes</span>, Not Days
