@@ -1,16 +1,16 @@
 "use client";
-import { use, useMemo } from "react";
-import { useAgentStream } from "../../../hooks/useAgentStream";
-import { ImprovedInvestigationTimeline } from "../../../components/ImprovedInvestigationTimeline";
-import { FindingCard } from "../../../components/FindingCard";
-import { ImprovedRiskPanel } from "../../../components/ImprovedRiskPanel";
-import { MemoryCorrelation } from "../../../components/MemoryCorrelation";
-import { HypothesisCard } from "../../../components/HypothesisCard";
-import { CommitIntelligence } from "../../../components/CommitIntelligence";
-import { BlastRadiusMap } from "../../../components/BlastRadiusMap";
-import { PatchProposal } from "../../../components/PatchProposal";
-import { EscalationBanner } from "../../../components/EscalationBanner";
-import type { AgentEvent } from "../../../hooks/useAgentStream";
+import { useMemo } from "react";
+import { useDemoStream } from "../../hooks/useDemoStream";
+import { ImprovedInvestigationTimeline } from "../../components/ImprovedInvestigationTimeline";
+import { FindingCard } from "../../components/FindingCard";
+import { ImprovedRiskPanel } from "../../components/ImprovedRiskPanel";
+import { MemoryCorrelation } from "../../components/MemoryCorrelation";
+import { HypothesisCard } from "../../components/HypothesisCard";
+import { CommitIntelligence } from "../../components/CommitIntelligence";
+import { BlastRadiusMap } from "../../components/BlastRadiusMap";
+import { PatchProposal } from "../../components/PatchProposal";
+import { EscalationBanner } from "../../components/EscalationBanner";
+import type { AgentEvent } from "../../hooks/useAgentStream";
 
 type RiskLevel = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
@@ -22,9 +22,8 @@ function normalizeRiskLevel(level: string | undefined): RiskLevel {
   return "LOW";
 }
 
-export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: sessionId } = use(params);
-  const { events, escalation, isComplete, error, resolveEscalation } = useAgentStream(sessionId);
+export default function DemoPage() {
+  const { events, escalation, isComplete, error, resolveEscalation } = useDemoStream();
 
   const latestMemoryMatch = useMemo(
     () => [...events].reverse().find((e) => e.type === "memory_match") as Extract<AgentEvent, { type: "memory_match" }> | undefined,
@@ -65,10 +64,6 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     if (!latestMemoryMatch?.matches.length) return undefined;
     return Math.round(Math.max(...latestMemoryMatch.matches.map((m) => m.similarity)) * 100);
   }, [latestMemoryMatch]);
-  const prUrl = useMemo(() => {
-    const completeEvent = events.find((e) => e.type === "complete") as Extract<AgentEvent, { type: "complete" }> | undefined;
-    return completeEvent?.pr_url;
-  }, [events]);
 
   const liveLogEvents = useMemo(
     () =>
@@ -122,7 +117,9 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           <span className="text-blue-400">Trace</span>Fix
         </a>
         <span className="text-slate-600">|</span>
-        <span className="text-slate-400 text-sm font-mono truncate max-w-xs">{sessionId}</span>
+        <span className="bg-amber-500/15 text-amber-300 border border-amber-500/40 text-xs px-3 py-1 rounded-full font-semibold">
+          ✨ DEMO MODE
+        </span>
         {isComplete ? (
           <span className="ml-auto bg-green-900 text-green-300 text-xs px-3 py-1 rounded-full font-semibold">
             ✓ Completed
@@ -131,16 +128,6 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           <span className="ml-auto bg-blue-900 text-blue-300 text-xs px-3 py-1.5 rounded-full font-semibold">
             ⟳ Investigating
           </span>
-        )}
-        {prUrl && (
-          <a
-            href={prUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="bg-blue-700 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-semibold transition-colors"
-          >
-            View PR →
-          </a>
         )}
       </header>
 

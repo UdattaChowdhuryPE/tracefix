@@ -22,7 +22,7 @@ export function HypothesisCard({ event }: { event: HypothesisEvent }) {
         : "border-yellow-300 bg-yellow-50"
     }`}>
       <div className="flex items-center gap-2 mb-2">
-        <span className="font-semibold text-sm">
+        <span className="font-semibold text-sm text-gray-900">
           {event.validated ? "✓ Root Cause Validated" : "⚠ Validation Inconclusive"}
         </span>
         <ConfidenceBadge confidence={event.confidence} />

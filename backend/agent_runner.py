@@ -10,6 +10,16 @@ from stream_parser import parse_event
 
 RUNNER_DIR = Path(__file__).parent.parent / "runner"
 
+TOOL_TO_STEP = {
+    "recall_past_investigations":  ("memory_recall",          "Searching past investigations..."),
+    "trace_dependency_chain":      ("dependency_chain",       "Tracing dependency chain..."),
+    "validate_root_cause":         ("hypothesis_validation",  "Validating root-cause hypothesis..."),
+    "analyze_commit_intelligence": ("commit_intelligence",    "Analyzing commit intelligence..."),
+    "estimate_blast_radius":       ("blast_radius",           "Estimating blast radius..."),
+    "generate_minimal_patch":      ("patch_ready",            "Generating minimal patch..."),
+    "analyze_regression_risk":     ("regression_risk",        "Analyzing regression risk..."),
+}
+
 
 def build_investigation_prompt(repo_url: str, error_text: str, github_token: str) -> str:
     return f"""You are investigating a bug report. Here is the full context:
@@ -84,6 +94,17 @@ async def run_agent(
 
                 event = parse_event(line)
                 if event:
+                    # Emit a step event when a tool_call is received
+                    if event.get("type") == "tool_call":
+                        tool_name = event.get("tool", "")
+                        if tool_name in TOOL_TO_STEP:
+                            step_name, summary = TOOL_TO_STEP[tool_name]
+                            await session_manager.broadcast(session_id, {
+                                "type": "step",
+                                "step": step_name,
+                                "summary": summary,
+                            })
+
                     await session_manager.broadcast(session_id, event)
                     if event.get("type") == "complete":
                         session_manager.update(session_id, status="complete")
@@ -119,6 +140,7 @@ async def run_agent(
             )
         else:
             session_manager.update(session_id, status="complete")
+            await session_manager.broadcast(session_id, {"type": "complete"})
 
     except Exception as e:
         session_manager.update(session_id, status="error")
