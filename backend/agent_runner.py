@@ -23,30 +23,63 @@ TOOL_TO_STEP = {
 
 
 def build_investigation_prompt(repo_url: str, error_text: str, github_token: str) -> str:
-    return f"""You are investigating a bug report. Here is the full context:
+    return f"""You are investigating a bug report in a Git repository.
 
+CRITICAL: Your investigation MUST follow this exact sequence:
+
+PHASE 1: ERROR CLASSIFICATION (MANDATORY - DO THIS FIRST)
+==============================================================
+Call triage_classifier with:
+  - error_text: the full error message
+  - stack_trace: the full stack trace from the error
+
+The triage_classifier will return:
+  - is_regression: boolean (true = regression in git history, false = configuration/null/setup error)
+  - category: one of (regression, null_dereference_construction, configuration_error, ambiguous)
+  - confidence: 0-100
+  - reason: explanation of the classification
+
+CRITICAL: You MUST call triage_classifier before doing anything else.
+Then inspect the result and proceed to PHASE 2 or PHASE 3 based on the is_regression flag.
+
+
+PHASE 2: NON-REGRESSION INVESTIGATION (if triage_classifier.is_regression == false)
+====================================================================================
+This error is NOT a regression from a recent commit. Instead:
+1. Analyze the call site where the error occurs
+2. Consider: null dereference at construction? Missing config? Missing environment variable?
+3. Create a diagnosis using the triage_classifier result
+4. Call request_human_review with your diagnosis (no bisecting needed)
+5. Stop - do not call analyze_commit_intelligence or generate_minimal_patch for non-regressions
+
+
+PHASE 3: REGRESSION INVESTIGATION (if triage_classifier.is_regression == true)
+================================================================================
+This is a regression from a commit. Proceed with:
+1. Recall past investigations — search memory for similar errors
+2. Trace dependency chain to identify candidate culprits
+3. Clone the repo to /tmp/tracefix-{{}} for analysis
+4. Form a written hypothesis with confidence score
+5. Run investigate_regression to bisect and find the first bad commit
+6. Run analyze_commit_intelligence on that commit
+7. Run validate_root_cause — if confidence < 70, call request_human_review
+8. Run estimate_blast_radius to assess impact
+9. Run generate_minimal_patch with the fix
+10. Run analyze_regression_risk before creating PR
+11. Create a GitHub PR with the patch and investigation report
+12. Update memory/past_investigations.md with what you learned
+
+
+STARTING CONDITIONS:
+====================
 GitHub Repository: {repo_url}
 GitHub Token: {github_token}
 
 Error / Stack Trace:
 {error_text}
 
-Begin the investigation now. Follow RULES.md exactly:
-0. START with triage_classifier to determine if this is a regression or a configuration/null-dereference error
-1. If triage_classifier says is_regression: true, proceed with bisect flow below
-2. If triage_classifier says is_regression: false, skip bisect and analyze the call site instead
-3. Recall past investigations — never skip memory
-4. Trace dependency chain to identify candidate culprits
-5. Clone the repo to /tmp/tracefix-{{}}
-6. Form a written hypothesis with confidence score
-7. Run investigate_regression
-8. Run analyze_commit_intelligence on the first bad commit
-9. Run validate_root_cause — if confidence < 70, call request_human_review
-10. Run estimate_blast_radius
-11. Run generate_minimal_patch
-12. Run analyze_regression_risk
-13. Create a GitHub PR using the cli tool with the patch and full investigation report
-14. Update memory/past_investigations.md with what you learned
+
+NOW: Call triage_classifier immediately with the error_text and stack_trace above.
 """
 
 
