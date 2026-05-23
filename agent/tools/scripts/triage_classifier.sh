@@ -25,7 +25,7 @@ suggested_approach = ""
 reason = ""
 
 # Heuristic 1: Check for null/undefined dereference at construction
-if re.search(r"Cannot read propert|TypeError.*undefined|ReferenceError", error_text):
+if re.search(r"Cannot read property|TypeError.*undefined|ReferenceError", error_text):
     if re.search(r"(new |\.initialize|constructor|__init__|\.new)", stack_trace):
         category = "null_dereference_construction"
         is_regression = False
