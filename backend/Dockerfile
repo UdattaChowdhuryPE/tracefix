@@ -17,11 +17,12 @@ RUN apt-get update && apt-get install -y curl git && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=node-base /app/runner /app/runner
-COPY backend/pyproject.toml backend/uv.lock ./
-RUN uv sync --frozen --no-dev --no-cache
+COPY backend/pyproject.toml backend/uv.lock /app/backend/
+RUN cd /app/backend && uv sync --frozen --no-dev --no-cache
 
-COPY backend/ ./backend/
-COPY agent/ ./agent/
+COPY backend/ /app/backend/
+COPY agent/ /app/agent/
 
+WORKDIR /app/backend
 EXPOSE 8000
-CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
