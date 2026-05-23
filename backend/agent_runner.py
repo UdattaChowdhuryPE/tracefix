@@ -32,18 +32,21 @@ Error / Stack Trace:
 {error_text}
 
 Begin the investigation now. Follow RULES.md exactly:
-1. Start with recall_past_investigations
-2. Then trace_dependency_chain
-3. Clone the repo to /tmp/tracefix-{{}}
-4. Form a written hypothesis with confidence score
-5. Run investigate_regression
-6. Run analyze_commit_intelligence on the first bad commit
-7. Run validate_root_cause — if confidence < 70, call request_human_review
-8. Run estimate_blast_radius
-9. Run generate_minimal_patch
-10. Run analyze_regression_risk
-11. Create a GitHub PR using the cli tool with the patch and full investigation report
-12. Update memory/past_investigations.md with what you learned
+0. START with triage_classifier to determine if this is a regression or a configuration/null-dereference error
+1. If triage_classifier says is_regression: true, proceed with bisect flow below
+2. If triage_classifier says is_regression: false, skip bisect and analyze the call site instead
+3. Recall past investigations — never skip memory
+4. Trace dependency chain to identify candidate culprits
+5. Clone the repo to /tmp/tracefix-{{}}
+6. Form a written hypothesis with confidence score
+7. Run investigate_regression
+8. Run analyze_commit_intelligence on the first bad commit
+9. Run validate_root_cause — if confidence < 70, call request_human_review
+10. Run estimate_blast_radius
+11. Run generate_minimal_patch
+12. Run analyze_regression_risk
+13. Create a GitHub PR using the cli tool with the patch and full investigation report
+14. Update memory/past_investigations.md with what you learned
 """
 
 
