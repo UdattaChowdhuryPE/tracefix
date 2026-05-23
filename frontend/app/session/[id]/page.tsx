@@ -10,6 +10,7 @@ import { CommitIntelligence } from "../../../components/CommitIntelligence";
 import { BlastRadiusMap } from "../../../components/BlastRadiusMap";
 import { PatchProposal } from "../../../components/PatchProposal";
 import { EscalationBanner } from "../../../components/EscalationBanner";
+import { TriageDiagnosisPanel } from "../../../components/TriageDiagnosisPanel";
 import type { AgentEvent } from "../../../hooks/useAgentStream";
 
 type RiskLevel = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
@@ -24,7 +25,7 @@ function normalizeRiskLevel(level: string | undefined): RiskLevel {
 
 export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = use(params);
-  const { events, escalation, isComplete, error, resolveEscalation } = useAgentStream(sessionId);
+  const { events, escalation, triageResult, isComplete, error, resolveEscalation } = useAgentStream(sessionId);
 
   const latestMemoryMatch = useMemo(
     () => [...events].reverse().find((e) => e.type === "memory_match") as Extract<AgentEvent, { type: "memory_match" }> | undefined,
@@ -81,7 +82,11 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const lastStep = stepEvents[stepEvents.length - 1]?.step;
   const seenSteps = new Set(stepEvents.map((s) => s.step));
 
-  function statusFor(stepName: string, hasDomainEvent: boolean): "complete" | "running" | "pending" {
+  const isNonRegression = triageResult && !triageResult.is_regression;
+  const skippedSteps = new Set(["commit_intelligence", "blast_radius", "patch_ready", "regression_risk"]);
+
+  function statusFor(stepName: string, hasDomainEvent: boolean): "complete" | "running" | "pending" | "skipped" {
+    if (isNonRegression && skippedSteps.has(stepName)) return "skipped";
     if (hasDomainEvent) return "complete";
     if (lastStep === stepName) return "running";
     if (seenSteps.has(stepName)) return "complete";
@@ -158,6 +163,28 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       <div className="flex flex-1 overflow-hidden gap-6 p-6">
         {/* Left: Findings */}
         <div className="flex-1 overflow-y-auto space-y-1 pr-2">
+          {/* Triage Classification */}
+          {triageResult && (
+            <FindingCard
+              stepName="TRIAGE"
+              status={triageResult.is_regression ? "complete" : "complete"}
+              confidence={triageResult.confidence}
+              stepIndex={0}
+              content={
+                triageResult.is_regression
+                  ? "Error classified as regression. Proceeding with bisection."
+                  : `Error classified as ${triageResult.category.replace(/_/g, " ")}. Analyzing root cause.`
+              }
+            >
+              <div className="text-sm text-slate-300 space-y-2">
+                <p><strong>Category:</strong> {triageResult.category.replace(/_/g, " ")}</p>
+                <p><strong>Confidence:</strong> {triageResult.confidence}%</p>
+                <p><strong>Reason:</strong> {triageResult.reason}</p>
+                <p><strong>Approach:</strong> {triageResult.suggested_approach}</p>
+              </div>
+            </FindingCard>
+          )}
+
           {/* Memory Recall */}
           <FindingCard
             stepName="MEMORY RECALL"
@@ -286,7 +313,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           </div>
         </div>
 
-        {/* Right: Sticky risk panel */}
+        {/* Right: Sticky risk panel or diagnosis panel */}
         <div className="w-96 flex-shrink-0 overflow-y-auto">
           {hasRiskData ? (
             <ImprovedRiskPanel
@@ -296,6 +323,13 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
               affectedServices={affectedServices}
               impactedModules={impactedModules}
               callers={callers}
+            />
+          ) : isNonRegression && triageResult ? (
+            <TriageDiagnosisPanel
+              category={triageResult.category}
+              confidence={triageResult.confidence}
+              reason={triageResult.reason}
+              suggested_approach={triageResult.suggested_approach}
             />
           ) : (
             <div className="sticky top-4 bg-slate-900/60 border border-slate-700 rounded-lg p-6 text-center text-slate-500 text-sm">

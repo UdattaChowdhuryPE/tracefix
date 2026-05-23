@@ -40,6 +40,17 @@ def parse_event(raw_line: str) -> dict | None:
             content = content_raw
 
         # Route to specialized event types based on tool name
+        if tool_name == "triage_classifier":
+            if isinstance(content, dict):
+                return {
+                    "type": "triage_result",
+                    "is_regression": content.get("is_regression", False),
+                    "category": content.get("category", "ambiguous"),
+                    "confidence": content.get("confidence", 0),
+                    "suggested_approach": content.get("suggested_approach", ""),
+                    "reason": content.get("reason", ""),
+                }
+
         if tool_name == "recall_past_investigations":
             matches = content.get("matches", []) if isinstance(content, dict) else []
             return {

@@ -14,6 +14,7 @@ tools:
   - read
   - write
   - memory
+  - triage_classifier
   - recall_past_investigations
   - trace_dependency_chain
   - investigate_regression

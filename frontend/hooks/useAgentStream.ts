@@ -14,6 +14,7 @@ export type AgentEvent =
   | { type: "thinking"; text: string }
   | { type: "tool_call"; tool: string; args: unknown }
   | { type: "tool_result"; tool: string; content: string }
+  | { type: "triage_result"; is_regression: boolean; category: string; confidence: number; suggested_approach: string; reason: string }
   | { type: "memory_match"; matches: MemoryMatch[]; reasoning: string }
   | { type: "hypothesis"; validated: boolean; confidence: number; evidence: string; revised_hypothesis: string | null }
   | { type: "escalation"; reason: string; confidence: number; hypothesis: string }
@@ -32,6 +33,7 @@ export type AgentEvent =
 export function useAgentStream(sessionId: string) {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [escalation, setEscalation] = useState<Extract<AgentEvent, { type: "escalation" }> | null>(null);
+  const [triageResult, setTriageResult] = useState<Extract<AgentEvent, { type: "triage_result" }> | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -46,6 +48,7 @@ export function useAgentStream(sessionId: string) {
         const event: AgentEvent = JSON.parse(e.data);
         if (event.type === "ping") return;
         setEvents((prev) => [...prev, event]);
+        if (event.type === "triage_result") setTriageResult(event);
         if (event.type === "escalation") setEscalation(event);
         if (event.type === "escalation_resolved") setEscalation(null);
         if (event.type === "complete") setIsComplete(true);
@@ -66,5 +69,5 @@ export function useAgentStream(sessionId: string) {
     });
   };
 
-  return { events, escalation, isComplete, error, resolveEscalation };
+  return { events, escalation, triageResult, isComplete, error, resolveEscalation };
 }

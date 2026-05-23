@@ -11,6 +11,7 @@ from stream_parser import parse_event
 RUNNER_DIR = Path(__file__).parent.parent / "runner"
 
 TOOL_TO_STEP = {
+    "triage_classifier":           ("triage",                 "Classifying error type..."),
     "recall_past_investigations":  ("memory_recall",          "Searching past investigations..."),
     "trace_dependency_chain":      ("dependency_chain",       "Tracing dependency chain..."),
     "validate_root_cause":         ("hypothesis_validation",  "Validating root-cause hypothesis..."),

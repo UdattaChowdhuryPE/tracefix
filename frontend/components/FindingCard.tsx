@@ -8,13 +8,14 @@ import {
   Zap,
   Wrench,
   Shield,
+  Filter,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
 
 interface FindingCardProps {
   stepName: string;
-  status: "complete" | "running" | "pending";
+  status: "complete" | "running" | "pending" | "skipped";
   confidence?: number | string;
   content?: string;
   progressLog?: string;
@@ -24,6 +25,7 @@ interface FindingCardProps {
 }
 
 const STEP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  "TRIAGE": Filter,
   "MEMORY RECALL": Brain,
   "DEPENDENCY CHAIN": GitBranch,
   "HYPOTHESIS VALIDATION": Lightbulb,
@@ -63,6 +65,12 @@ export function FindingCard({
       badge: "bg-slate-900/50 text-slate-300",
       shadow: "shadow-lg hover:shadow-xl",
     },
+    skipped: {
+      bg: "bg-gradient-to-br from-slate-900/40 to-slate-950",
+      iconColor: "text-slate-400",
+      badge: "bg-slate-800/50 text-slate-400",
+      shadow: "shadow-lg hover:shadow-xl opacity-60",
+    },
   } as const;
 
   const config = statusConfig[status];
@@ -77,6 +85,8 @@ export function FindingCard({
       ? "Pending"
       : status === "running"
       ? "calculating..."
+      : status === "skipped"
+      ? "Skipped"
       : null;
 
   return (
