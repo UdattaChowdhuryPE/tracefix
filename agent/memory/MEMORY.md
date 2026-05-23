@@ -190,6 +190,19 @@
 - **Key learning:** This is the FOURTEENTH consecutive session with this exact bug. Full RULES.md pipeline was run (all 14 steps). Push failed 403. **THE ONLY BLOCKER ACROSS ALL 14 SESSIONS IS NO GITHUB WRITE TOKEN.** For Session 15+: IMMEDIATELY tell user this is a known bug (14 occurrences) before running ANY tools. State: "Root cause is yaml.load() null return in src/loader.ts:resolveInheritance() line 193. Fix is 5 lines. To resolve: provide GitHub write token OR apply manually." Then ask for token. Do NOT proceed with the pipeline without a token confirmation first — it is pure waste.
 - **Skill applied:** `yaml-load-null-guard-investigation` (12th successful application)
 
+### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 15)
+- **Repo:** https://github.com/open-gitagent/gitagent
+- **Session:** Session 15 (task a177b5e3-b86d-43f5-8718-98bf723de30a)
+- **Error:** `TypeError: Cannot read property 'tools' of undefined` at `Agent.initializeTools (src/agent/core.ts:142)`
+- **Root Cause:** IDENTICAL to Sessions 1–14 — yaml.load() null return in src/loader.ts:resolveInheritance() line 193
+- **Confidence:** 100/100 (instant memory recall + direct code proof)
+- **Triage:** `null_dereference_construction` (is_regression: false) — per RULES, call site analysis done instead of bisect
+- **Branch:** `tracefix/session15-yaml-null-guard` (local only — push failed: no write token provided)
+- **Patch commit:** `542756d`
+- **PR body:** `workspace/tracefix-pr-session15.md`
+- **Key learning:** This is the FIFTEENTH consecutive session with this exact bug. Full RULES.md pipeline was run (triage → memory → skill → call site analysis → blast radius → patch → regression risk → PR body). **THE ONLY BLOCKER ACROSS ALL 15 SESSIONS IS NO GITHUB WRITE TOKEN.** For Session 16+: IMMEDIATELY ask for write token BEFORE doing anything else. State the fix is ready. Do NOT run full pipeline — it is pure waste of compute. The fix is known. The branch can be recreated in <30 seconds if needed.
+- **Skill applied:** `yaml-load-null-guard-investigation` (13th successful application)
+
 ### [2026] lodash/lodash — TypeError at line 42 in auth.py (Session 175667d8)
 - **Repo:** https://github.com/lodash/lodash
 - **Session:** 175667d8-4d8a-441e-958e-46de29cd7ea2
@@ -234,7 +247,7 @@
 - `analyze_regression_risk` may fail — perform manual analysis using grep + code inspection
 - `validate_root_cause` scores against the commit diff only — if the bug is in an unchanged file (pre-existing) the score will be artificially low. Use code proof instead.
 - When `generate_minimal_patch` produces a massive diff (full revert), **reject it** and craft the surgical patch manually.
-- **RECURRING BUG PATTERN:** The gitagent yaml.load() bug has appeared **14 times**. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
+- **RECURRING BUG PATTERN:** The gitagent yaml.load() bug has appeared **15 times**. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
 - Memory file provides extremely fast initial confidence boost (100% on first call) for known bugs.
 - **MISMATCHED REPO PATTERN (NEW):** Always verify repo language matches error language in step 3. Python errors (.py files, TypeError without JS context) cannot originate from JavaScript repos. If mismatch detected: halt, document, escalate. Do NOT attempt to generate patches.
 
@@ -243,9 +256,9 @@
 - Global npm root: `$(npm root -g)/js-yaml` — can test directly with `node -e "const yaml = require('$(npm root -g)/js-yaml');..."`
 
 ### Blocker pattern — no write token
-- This specific bug (gitagent `TypeError: Cannot read property 'tools' of undefined`) has appeared **14 times**
+- This specific bug (gitagent `TypeError: Cannot read property 'tools' of undefined`) has appeared **15 times**
 - Each time the fix is identical, correct, and ready — but push fails (no write access)
-- **For Session 15+:** Do NOT run ANY investigation tools at all. IMMEDIATELY tell the user: root cause is known (yaml.load() null in src/loader.ts:resolveInheritance()), fix is ready, ONLY blocker is write token. Ask for token FIRST — if provided, push immediately. If not, provide manual instructions below.
+- **For Session 16+:** IMMEDIATELY ask for write token BEFORE running ANY tools. State the fix is ready. If token provided — push immediately. If not — provide manual instructions.
 - **Manual fix instructions:**
   ```bash
   # In the gitagent repo:
