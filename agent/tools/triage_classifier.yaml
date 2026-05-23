@@ -1,0 +1,17 @@
+name: triage_classifier
+description: Classify error type — is this a regression bisectable by git history, or a configuration/null-dereference/ambiguous error? Returns error category and suggested approach.
+input_schema:
+  properties:
+    error_text:
+      type: string
+      description: The full stack trace or error message
+    stack_trace:
+      type: string
+      description: The stack trace lines from the error
+    repo_url:
+      type: string
+      description: The GitHub repository URL being investigated
+  required: [error_text]
+implementation:
+  script: scripts/triage_classifier.sh
+  runtime: sh
