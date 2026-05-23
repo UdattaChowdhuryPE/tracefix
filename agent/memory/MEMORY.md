@@ -87,6 +87,18 @@
 - **Key learning:** This is the SIXTH time this exact bug has been reported. Investigation took ~3 minutes (memory + skill). The blocker remains: no write token. **For Session 7+: Skip all investigation. The answer is known. Fix is in src/loader.ts:resolveInheritance(). Point user to PR body and demand write token.**
 - **Skill applied:** `yaml-load-null-guard-investigation` (4th successful application)
 
+### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 7 / 2f6b529a)
+- **Repo:** https://github.com/open-gitagent/gitagent
+- **Session:** 2f6b529a-0c1b-4ddf-bde6-8578268fc0c3
+- **Error:** `TypeError: Cannot read property 'tools' of undefined` at `Agent.initializeTools (src/agent/core.ts:142)`
+- **Root Cause:** IDENTICAL to Sessions 1–6 — yaml.load() null return in src/loader.ts:resolveInheritance() line 193
+- **Confidence:** 100/100
+- **Branch:** `tracefix/23bb53a` (local only — push failed 403, no write token)
+- **Patch commit:** `72a92f5`
+- **PR body:** `workspace/tracefix-pr-session7.md`
+- **Key learning:** This is the SEVENTH consecutive session with this exact bug. The fix is proven, surgical, safe, and ready. **The ONLY blocker is that no GitHub write token has ever been provided.** This bug WILL keep being reported until the 5-line patch is merged. For Session 8+: immediately inform the user about the write token requirement — do not run full investigation pipeline again, it wastes time. The fix is known.
+- **Skill applied:** `yaml-load-null-guard-investigation` (5th successful application)
+
 ### [2026] lodash/lodash — TypeError at line 42 in auth.py (Session 175667d8)
 - **Repo:** https://github.com/lodash/lodash
 - **Session:** 175667d8-4d8a-441e-958e-46de29cd7ea2
@@ -131,7 +143,7 @@
 - `analyze_regression_risk` may fail — perform manual analysis using grep + code inspection
 - `validate_root_cause` scores against the commit diff only — if the bug is in an unchanged file (pre-existing) the score will be artificially low. Use code proof instead.
 - When `generate_minimal_patch` produces a massive diff (full revert), **reject it** and craft the surgical patch manually.
-- **RECURRING BUG PATTERN:** The gitagent yaml.load() bug has appeared **6 times**. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
+- **RECURRING BUG PATTERN:** The gitagent yaml.load() bug has appeared **7 times**. Fix is proven. Blocker = no write token. Resolution path: user must provide GitHub token with write access OR apply patch manually.
 - Memory file provides extremely fast initial confidence boost (100% on first call) for known bugs.
 - **MISMATCHED REPO PATTERN (NEW):** Always verify repo language matches error language in step 3. Python errors (.py files, TypeError without JS context) cannot originate from JavaScript repos. If mismatch detected: halt, document, escalate. Do NOT attempt to generate patches.
 
@@ -140,9 +152,9 @@
 - Global npm root: `$(npm root -g)/js-yaml` — can test directly with `node -e "const yaml = require('$(npm root -g)/js-yaml');..."`
 
 ### Blocker pattern — no write token
-- This specific bug (gitagent `TypeError: Cannot read property 'tools' of undefined`) has appeared **6 times**
+- This specific bug (gitagent `TypeError: Cannot read property 'tools' of undefined`) has appeared **7 times**
 - Each time the fix is identical, correct, and ready — but push fails (no write access)
-- **For Session 7+:** Immediately point user to `workspace/tracefix-pr-session6.md` with manual apply instructions. Investigation is complete. The fix is: 5-line null guard in `src/loader.ts:resolveInheritance()` after `yaml.load()` call. No further investigation needed.
+- **For Session 8+:** Immediately inform the user that the root cause and fix are fully known from 7 prior sessions. Do NOT run the full investigation pipeline. Present the fix and demand a write token.
 - **Manual fix instructions:**
   ```bash
   # In the gitagent repo:
@@ -154,4 +166,21 @@
   if (!parentManifest) {
       return { manifest, parentRules: "" };
   }
+  ```
+- **The patch diff:**
+  ```diff
+  --- a/src/loader.ts
+  +++ b/src/loader.ts
+  @@ -191,6 +191,11 @@ async function resolveInheritance(
+   	try {
+   		const parentRaw = await readFile(join(parentDir, "agent.yaml"), "utf-8");
+   		parentManifest = yaml.load(parentRaw) as AgentManifest;
+  +		// Guard: yaml.load() returns null/undefined for empty or comment-only YAML without throwing.
+  +		// A null parentManifest would crash on .tools access below — TypeError: Cannot read property 'tools' of undefined.
+  +		if (!parentManifest) {
+  +			return { manifest, parentRules: "" };
+  +		}
+   	} catch {
+   		return { manifest, parentRules: "" };
+   	}
   ```
