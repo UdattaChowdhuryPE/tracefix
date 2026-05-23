@@ -38,21 +38,21 @@ export function EscalationBanner({
       <div className="flex gap-2 mt-3">
         <button
           onClick={() => onResolve("approve", guidance)}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors"
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors uppercase tracking-wide"
         >
           Approve &amp; Continue
         </button>
         {guidance && (
           <button
             onClick={() => onResolve("guide", guidance)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors uppercase tracking-wide"
           >
             Send Guidance
           </button>
         )}
         <button
           onClick={() => onResolve("reject")}
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors"
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors uppercase tracking-wide"
         >
           Reject
         </button>

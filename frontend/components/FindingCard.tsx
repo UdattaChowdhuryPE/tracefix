@@ -107,7 +107,7 @@ export function FindingCard({
             )}
           </div>
           <div className="text-left">
-            <h3 className="font-space-grotesk font-bold text-slate-100 text-sm">{stepName}</h3>
+            <h3 className="font-fraunces font-bold text-slate-100 text-sm">{stepName}</h3>
           </div>
           {badgeText && (
             <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${config.badge} flex-shrink-0`}>

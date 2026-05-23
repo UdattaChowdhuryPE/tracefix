@@ -100,7 +100,7 @@ function TimelineStepCard({ step }: { step: TimelineStep }) {
           }`}
         />
       )}
-      <span className={`${config.text} text-sm font-space-grotesk font-semibold`}>{step.name}</span>
+      <span className={`${config.text} text-sm font-fraunces font-semibold`}>{step.name}</span>
     </div>
   );
 }

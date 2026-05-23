@@ -65,7 +65,7 @@ export function TriageDiagnosisPanel({
     <div className={`sticky top-4 ${config.bg} border ${config.border} rounded-lg p-6 shadow-lg`}>
       <div className="flex items-center gap-3 mb-6">
         <IconComponent className={`w-5 h-5 ${config.text}`} />
-        <h3 className="font-space-grotesk font-bold text-slate-100 text-lg">Diagnosis</h3>
+        <h3 className="font-fraunces font-bold text-slate-100 text-lg">Diagnosis</h3>
       </div>
 
       {/* Category Badge */}

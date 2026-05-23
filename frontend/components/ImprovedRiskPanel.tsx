@@ -61,7 +61,7 @@ export function ImprovedRiskPanel({
   return (
     <div className="sticky top-4 space-y-4">
       <div className={`${config.bg} border ${config.border} rounded-xl shadow-xl p-6 text-center backdrop-blur-sm`}>
-        <div className="text-xs text-slate-400 mb-2 font-space-grotesk font-bold uppercase tracking-wide">
+        <div className="text-xs text-slate-400 mb-2 font-fraunces font-bold uppercase tracking-wide">
           Risk Score
         </div>
         <div className="flex items-center justify-center gap-4 mb-6">
@@ -107,7 +107,7 @@ export function ImprovedRiskPanel({
 
       {whyRisky.length > 0 && (
         <div className="bg-slate-900/60 border border-slate-700 rounded-xl shadow-md p-4 backdrop-blur-sm">
-          <h4 className="text-xs font-space-grotesk font-bold text-slate-300 mb-3 uppercase tracking-wide">Why Risky</h4>
+          <h4 className="text-xs font-fraunces font-bold text-slate-300 mb-3 uppercase tracking-wide">Why Risky</h4>
           <ul className="space-y-2">
             {whyRisky.map((reason, idx) => (
               <li key={idx} className="flex items-start gap-2 text-sm text-slate-300">
@@ -121,7 +121,7 @@ export function ImprovedRiskPanel({
 
       {affectedServices.length > 0 && (
         <div className="bg-slate-900/60 border border-slate-700 rounded-xl shadow-md p-4 backdrop-blur-sm">
-          <h4 className="text-xs font-space-grotesk font-bold text-slate-300 mb-3 uppercase tracking-wide">
+          <h4 className="text-xs font-fraunces font-bold text-slate-300 mb-3 uppercase tracking-wide">
             Affected Services
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -139,7 +139,7 @@ export function ImprovedRiskPanel({
 
       {impactedModules.length > 0 && (
         <div className="bg-slate-900/60 border border-slate-700 rounded-xl shadow-md p-4 backdrop-blur-sm">
-          <h4 className="text-xs font-space-grotesk font-bold text-slate-300 mb-3 uppercase tracking-wide">
+          <h4 className="text-xs font-fraunces font-bold text-slate-300 mb-3 uppercase tracking-wide">
             Impacted Modules
           </h4>
           <div className="space-y-2">
@@ -160,7 +160,7 @@ export function ImprovedRiskPanel({
 
       {callers.length > 0 && (
         <div className="bg-slate-900/60 border border-slate-700 rounded-xl shadow-md p-4 backdrop-blur-sm">
-          <h4 className="text-xs font-space-grotesk font-bold text-slate-300 mb-3 uppercase tracking-wide">Callers</h4>
+          <h4 className="text-xs font-fraunces font-bold text-slate-300 mb-3 uppercase tracking-wide">Callers</h4>
           <ul className="space-y-1 max-h-40 overflow-y-auto">
             {callers.map((caller) => (
               <li key={caller} className="text-xs text-slate-400 font-mono break-all">

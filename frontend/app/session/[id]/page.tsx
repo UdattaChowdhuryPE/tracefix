@@ -273,7 +273,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
           {/* Live Investigation Log */}
           <div className="rounded-xl shadow-lg bg-slate-900/80 border border-slate-700 p-5 mb-4">
-            <h3 className="font-space-grotesk font-bold text-slate-100 text-sm mb-3 flex items-center gap-2">
+            <h3 className="font-fraunces font-bold text-slate-100 text-sm mb-3 flex items-center gap-2">
               <span className="text-lg">⟳</span> Live Investigation Log
             </h3>
             {liveLogEvents.length === 0 ? (
