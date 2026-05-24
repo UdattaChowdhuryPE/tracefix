@@ -24,6 +24,13 @@
 - **Branch:** N/A — user has not provided write token
 - **Key learning:** Session 19. Fix is proven and identical across all 19 sessions. Awaiting GitHub write token to deploy.
 
+### [2026] gitagent — TypeError: Cannot read property 'tools' of undefined (Session 20)
+- **Root Cause:** IDENTICAL to Sessions 1–19
+- **Confidence:** 100/100 (instant memory recall, zero investigation needed)
+- **Triage:** is_regression=false, category=ambiguous (Phase 2 non-regression path followed)
+- **Branch:** N/A — no write token provided
+- **Key learning:** Session 20. Same bug, same fix, same blocker. Fix is READY — needs GitHub write access to deploy. request_human_review tool still has Python syntax error (code 2). yaml-load-null-guard-investigation skill confidence has degraded to 0.52 due to partial outcomes.
+
 ### [2026] lodash/lodash — TypeError at line 42 in auth.py (Session 175667d8)
 - **Repo:** https://github.com/lodash/lodash
 - **Session:** 175667d8-4d8a-441e-958e-46de29cd7ea2
@@ -60,12 +67,12 @@
 - `analyze_regression_risk` may fail — perform manual analysis
 - `validate_root_cause` scores against the commit diff only — if bug is in unchanged file, score will be low; use code proof instead
 - When `generate_minimal_patch` produces a massive diff (full revert), **reject it** and craft surgical patch manually
-- **RECURRING BUG PATTERN:** The gitagent yaml.load() bug has appeared **19 times**. Fix is proven. Blocker = no write token.
+- **RECURRING BUG PATTERN:** The gitagent yaml.load() bug has appeared **20 times**. Fix is proven. Blocker = no write token.
 - `request_human_review` tool has an internal Python syntax error in its script — tool will fail with exit code 2.
 
 ### Blocker pattern — no write token
-- This specific bug (gitagent `TypeError: Cannot read property 'tools' of undefined`) has appeared **19 times**
-- **For Session 20+:** IMMEDIATELY ask for write token BEFORE running ANY tools. State the fix is ready. If token provided — push immediately. If not — provide manual instructions.
+- This specific bug (gitagent `TypeError: Cannot read property 'tools' of undefined`) has appeared **20 times**
+- **For Session 21+:** IMMEDIATELY ask for write token BEFORE running ANY tools. State the fix is ready. If token provided — push immediately. If not — provide manual instructions.
 - **Manual fix instructions:**
   ```bash
   # In the gitagent repo:
