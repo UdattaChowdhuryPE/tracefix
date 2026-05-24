@@ -16,7 +16,7 @@ An autonomous root-cause investigation engineer for software regressions. Given 
 ### Prerequisites
 
 - Node.js 18+
-- Python 3.11+
+- Python 3.12+
 - `uv` package manager (`pip install uv` or `brew install uv`)
 - `ANTHROPIC_API_KEY` environment variable set
 
@@ -60,13 +60,14 @@ Open http://localhost:3000 in your browser.
 
 ### Agent
 
-The gitclaw agent orchestrates the investigation. It defines 10 custom tools (backed by shell scripts) plus 4 built-in tools (`cli`, `read`, `write`, `memory`). Configuration lives in `agent/agent.yaml` — behavior rules in `agent/RULES.md` — persistent memory appended to `agent/memory/past_investigations.md` after each session.
+The gitclaw agent orchestrates the investigation. It defines 10 custom tools (backed by shell scripts) plus 4 built-in tools (`cli`, `read`, `write`, `memory`) for a total of 14 tools. Configuration lives in `agent/agent.yaml` — behavior rules in `agent/RULES.md` — persistent memory appended to `agent/memory/past_investigations.md` after each session. Active runtime memory is maintained in `agent/memory/MEMORY.md`.
 
 Key files:
-- **`agent/agent.yaml`** — model config (`anthropic:claude-sonnet-4-6`, temperature 0.3, 8192 max tokens) and 13-item tool list
+- **`agent/agent.yaml`** — model config (`anthropic:claude-sonnet-4-6`, temperature 0.3, 8192 max tokens) and 14-item tool list (4 built-in + 10 custom)
 - **`agent/RULES.md`** — 10 behavioral constraints (always triage first, confidence gates, patch minimality, branch naming)
 - **`agent/SOUL.md`** — agent identity and investigation directive
 - **`agent/tools/`** — 10 YAML tool definitions + `scripts/` directory with shell implementations
+- **`agent/memory/`** — contains `past_investigations.md` (session records) and `MEMORY.md` (active runtime memory)
 
 ### Runner
 
@@ -77,7 +78,7 @@ Key files:
 
 ### Backend
 
-A FastAPI server managing sessions, spawning the runner as a subprocess, parsing gitclaw events into typed frontend events, and handling escalation pauses. Session lifecycle: create session → POST `/run` spawns runner subprocess → stream_parser maps NDJSON to typed events → send over WebSocket. Escalation gates pause the subprocess via `asyncio.Event` until frontend responds to `/sessions/{id}/review-decision`.
+A FastAPI server managing sessions, spawning the runner as a subprocess, parsing gitclaw events into typed frontend events, and handling escalation pauses. Session lifecycle: create session → POST `/run` spawns runner subprocess → stream_parser maps NDJSON to typed events → send over WebSocket. Escalation gates pause the subprocess via `asyncio.Event` until frontend responds to `/sessions/{id}/review-decision`. All session data is persisted to SQLite via the database layer.
 
 Key files:
 - **`backend/main.py`** — FastAPI app, routes (`/run`, `/sessions/{id}`, `/sessions/{id}/review-decision`)
@@ -86,18 +87,53 @@ Key files:
 - **`backend/escalation_handler.py`** — asyncio.Event pause/resume for human review gates
 - **`backend/session_manager.py`** — session creation and lifecycle tracking
 - **`backend/github_client.py`** — GitHub API wrapper for PR creation and repo cloning
+- **`backend/db.py`** — SQLite session persistence (database initialization, queries, session records)
+- **`backend/secret_utils.py`** — scrubs sensitive values (API keys, tokens) from streamed events before sending to frontend
 
 ### Frontend
 
-A Next.js 16.2.6 (React 19, Tailwind CSS v4) application. Landing page (`/`) accepts stack trace + repo URL. Session view (`/session/[id]`) renders a 3-panel investigation UI — left panel shows triage/hypothesis/root cause, center panel shows patch diff, right panel shows escalation controls. Uses `useAgentStream` hook to consume WebSocket events and update UI in real-time.
+A Next.js 16.2.6 (React 19, Tailwind CSS v4) application. Landing page (`/`) accepts stack trace + repo URL. Session view (`/session/[id]`) renders a 3-panel investigation UI — left panel shows triage/hypothesis/root cause, center panel shows patch diff, right panel shows escalation controls. Uses `useAgentStream` hook to consume WebSocket events and update UI in real-time. Demo mode is available for testing investigations without a live backend.
 
 Key files:
 - **`frontend/app/page.tsx`** — landing page with stack trace + repo input form
 - **`frontend/app/session/[id]/page.tsx`** — live 3-panel investigation view
-- **`frontend/hooks/useAgentStream.ts`** — WebSocket consumer; manages AgentEvent state
+- **`frontend/hooks/useAgentStream.ts`** — WebSocket consumer; manages AgentEvent state and updates UI
+- **`frontend/hooks/useDemoStream.ts`** — demo mode hook; simulates investigation stream for testing without backend
 - **`frontend/app/globals.css`** — Tailwind v4 stylesheet
 - **`frontend/app/demo/`** — demo/example investigation view
-- **`frontend/app/test/`** — testing utilities
+
+## Deployment
+
+### Docker Compose (Local Development)
+
+A `docker-compose.yml` file orchestrates both backend and frontend services for local testing:
+
+```bash
+docker-compose up --build
+```
+
+This spins up:
+- **Backend service** (`tracefix-backend`) on port 8000 — FastAPI app with volumes for `agent/` and `runner/` directories
+- **Frontend service** (`tracefix-frontend`) on port 3000 — Next.js app with environment variable `NEXT_PUBLIC_BACKEND_URL` pointing to backend
+
+### Fly.io Deployment
+
+Production deployment to Fly.io is configured in `fly.toml`:
+- **App name**: `tracefix-backend`
+- **Region**: `sjc` (San Jose)
+- **Resources**: Shared CPU, 1 vCPU, 1024MB RAM
+- **Health checks**: 30s TCP checks on port 8000
+
+**Environment variables for deployment**:
+- `ANTHROPIC_API_KEY` — Required; Claude API key for agent
+- `INTERNAL_API_SECRET` — Required in production; authenticates internal endpoints
+- `GITHUB_TOKEN` — Optional; enables PR creation on GitHub
+- `NEXT_PUBLIC_BACKEND_URL` — Frontend uses this to connect to backend API/WebSocket
+- `CORS_ALLOW_ORIGINS` — Comma-separated list of allowed CORS origins for FastAPI (e.g., `https://example.com`)
+- `SESSIONS_DB_PATH` — Optional; defaults to `backend/tracefix_sessions.db`
+- `AGENT_TIMEOUT_SECONDS` — Optional; defaults to 660
+
+See `.env.example` for all available environment variables.
 
 ## How the Investigation Works
 
