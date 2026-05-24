@@ -113,19 +113,19 @@ export default function DemoPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Header */}
       <header className="bg-slate-900 border-b border-slate-700 px-6 py-3 flex items-center gap-4">
-        <a href="/" className="text-xl font-black tracking-tight">
-          <span className="text-blue-400">Trace</span>Fix
+        <a href="/" className="font-[family-name:var(--font-fraunces)] text-2xl font-bold text-slate-100">
+          <span className="text-blue-500">Trace</span>Fix
         </a>
         <span className="text-slate-600">|</span>
         <span className="bg-amber-500/15 text-amber-300 border border-amber-500/40 text-xs px-3 py-1 rounded-full font-semibold">
           ✨ DEMO MODE
         </span>
         {isComplete ? (
-          <span className="ml-auto bg-green-900 text-green-300 text-xs px-3 py-1 rounded-full font-semibold">
+          <span className="ml-auto bg-green-900 text-green-300 text-sm px-3 py-1 rounded-full font-semibold font-[family-name:var(--font-fraunces)]">
             ✓ Completed
           </span>
         ) : (
-          <span className="ml-auto bg-blue-900 text-blue-300 text-xs px-3 py-1.5 rounded-full font-semibold">
+          <span className="ml-auto bg-blue-900 text-blue-300 text-sm px-3 py-1.5 rounded-full font-semibold font-[family-name:var(--font-fraunces)]">
             ⟳ Investigating
           </span>
         )}
@@ -145,6 +145,47 @@ export default function DemoPage() {
       <div className="flex flex-1 overflow-hidden gap-6 p-6">
         {/* Left: Findings */}
         <div className="flex-1 overflow-y-auto space-y-1 pr-2">
+          {/* Live Investigation Log */}
+          <div className="rounded-xl shadow-lg bg-slate-900/80 border border-slate-700 p-5 mb-4">
+            <h3 className="font-fraunces font-bold text-slate-100 text-sm mb-3 flex items-center gap-2">
+              <span className="text-lg">⟳</span> Live Investigation Log
+            </h3>
+            {liveLogEvents.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">Waiting for activity…</p>
+            ) : (
+              <div className="text-xs space-y-1 max-h-56 overflow-y-auto scroll-smooth font-mono">
+                {liveLogEvents.slice(-50).map((e, idx) => {
+                  if (e.type === "thinking") {
+                    return (
+                      <div key={idx} className="flex items-start gap-2 py-0.5 leading-relaxed">
+                        <span className="text-purple-400 flex-shrink-0">💭</span>
+                        <span className="text-slate-400">{e.text}</span>
+                      </div>
+                    );
+                  }
+                  if (e.type === "tool_call") {
+                    return (
+                      <div key={idx} className="flex items-start gap-2 py-0.5 leading-relaxed">
+                        <span className="text-cyan-300 font-semibold flex-shrink-0">🔧</span>
+                        <span className="text-cyan-300 font-semibold">Called: {e.tool}</span>
+                      </div>
+                    );
+                  }
+                  if (e.type === "tool_result") {
+                    const preview = e.content.length > 120 ? e.content.slice(0, 120) + "…" : e.content;
+                    return (
+                      <div key={idx} className="flex items-start gap-2 py-0.5 leading-relaxed">
+                        <span className="text-slate-500 flex-shrink-0">↳</span>
+                        <span className="text-slate-500 italic truncate">{e.tool}: {preview}</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Memory Recall */}
           <FindingCard
             stepName="MEMORY RECALL"
@@ -230,47 +271,6 @@ export default function DemoPage() {
           >
             {latestPatch && <PatchProposal event={latestPatch} />}
           </FindingCard>
-
-          {/* Live Investigation Log */}
-          <div className="rounded-xl shadow-lg bg-slate-900/80 border border-slate-700 p-5 mb-4">
-            <h3 className="font-fraunces font-bold text-slate-100 text-sm mb-3 flex items-center gap-2">
-              <span className="text-lg">⟳</span> Live Investigation Log
-            </h3>
-            {liveLogEvents.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">Waiting for activity…</p>
-            ) : (
-              <div className="text-xs space-y-1 max-h-56 overflow-y-auto scroll-smooth font-mono">
-                {liveLogEvents.slice(-50).map((e, idx) => {
-                  if (e.type === "thinking") {
-                    return (
-                      <div key={idx} className="flex items-start gap-2 py-0.5 leading-relaxed">
-                        <span className="text-purple-400 flex-shrink-0">💭</span>
-                        <span className="text-slate-400">{e.text}</span>
-                      </div>
-                    );
-                  }
-                  if (e.type === "tool_call") {
-                    return (
-                      <div key={idx} className="flex items-start gap-2 py-0.5 leading-relaxed">
-                        <span className="text-cyan-300 font-semibold flex-shrink-0">🔧</span>
-                        <span className="text-cyan-300 font-semibold">Called: {e.tool}</span>
-                      </div>
-                    );
-                  }
-                  if (e.type === "tool_result") {
-                    const preview = e.content.length > 120 ? e.content.slice(0, 120) + "…" : e.content;
-                    return (
-                      <div key={idx} className="flex items-start gap-2 py-0.5 leading-relaxed">
-                        <span className="text-slate-500 flex-shrink-0">↳</span>
-                        <span className="text-slate-500 italic truncate">{e.tool}: {preview}</span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Right: Sticky risk panel */}
