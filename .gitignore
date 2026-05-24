@@ -46,3 +46,4 @@ Thumbs.db
 agent/.gitagent/
 agent/workspace/
 CLAUDE.md
+*.db
