@@ -1,5 +1,5 @@
 "use client";
-import { use, useMemo } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useAgentStream } from "../../../hooks/useAgentStream";
 import { ImprovedInvestigationTimeline } from "../../../components/ImprovedInvestigationTimeline";
 import { FindingCard } from "../../../components/FindingCard";
@@ -25,7 +25,12 @@ function normalizeRiskLevel(level: string | undefined): RiskLevel {
 
 export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = use(params);
-  const { events, escalation, triageResult, isComplete, error, resolveEscalation } = useAgentStream(sessionId);
+  const [reviewToken, setReviewToken] = useState("");
+  useEffect(() => {
+    const stored = sessionStorage.getItem(`tracefix-review-token:${sessionId}`);
+    setReviewToken(stored || "");
+  }, [sessionId]);
+  const { events, escalation, triageResult, isComplete, error, resolveEscalation } = useAgentStream(sessionId, reviewToken);
 
   const latestMemoryMatch = useMemo(
     () => [...events].reverse().find((e) => e.type === "memory_match") as Extract<AgentEvent, { type: "memory_match" }> | undefined,

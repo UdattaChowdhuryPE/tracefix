@@ -1,4 +1,5 @@
 import json
+from secret_utils import scrub
 
 
 def parse_event(raw_line: str) -> dict | None:
@@ -19,8 +20,8 @@ def parse_event(raw_line: str) -> dict | None:
 
     if msg_type == "delta":
         if msg.get("deltaType") == "thinking":
-            return {"type": "thinking", "text": msg.get("content", "")}
-        return {"type": "thinking", "text": msg.get("content", "")}
+            return {"type": "thinking", "text": scrub(msg.get("content", ""))}
+        return {"type": "text_delta", "text": scrub(msg.get("content", ""))}
 
     if msg_type == "tool_call":
         return {
@@ -47,8 +48,8 @@ def parse_event(raw_line: str) -> dict | None:
                     "is_regression": content.get("is_regression", False),
                     "category": content.get("category", "ambiguous"),
                     "confidence": content.get("confidence", 0),
-                    "suggested_approach": content.get("suggested_approach", ""),
-                    "reason": content.get("reason", ""),
+                    "suggested_approach": scrub(content.get("suggested_approach", "")),
+                    "reason": scrub(content.get("reason", "")),
                 }
 
         if tool_name == "recall_past_investigations":
@@ -56,7 +57,7 @@ def parse_event(raw_line: str) -> dict | None:
             return {
                 "type": "memory_match",
                 "matches": matches,
-                "reasoning": content.get("reasoning", "") if isinstance(content, dict) else "",
+                "reasoning": scrub(content.get("reasoning", "")) if isinstance(content, dict) else "",
             }
 
         if tool_name == "validate_root_cause":
@@ -65,17 +66,17 @@ def parse_event(raw_line: str) -> dict | None:
                     "type": "hypothesis",
                     "validated": content.get("hypothesis_validated", False),
                     "confidence": content.get("confidence", 0),
-                    "evidence": content.get("evidence", ""),
-                    "revised_hypothesis": content.get("revised_hypothesis"),
+                    "evidence": scrub(content.get("evidence", "")),
+                    "revised_hypothesis": scrub(content.get("revised_hypothesis")),
                 }
 
         if tool_name == "request_human_review":
             if isinstance(content, dict):
                 return {
                     "type": "escalation",
-                    "reason": content.get("reason", ""),
+                    "reason": scrub(content.get("reason", "")),
                     "confidence": content.get("confidence", 0),
-                    "hypothesis": content.get("hypothesis", ""),
+                    "hypothesis": scrub(content.get("hypothesis", "")),
                 }
 
         if tool_name == "estimate_blast_radius":
@@ -86,15 +87,15 @@ def parse_event(raw_line: str) -> dict | None:
                     "risk_level": content.get("risk_level", "LOW"),
                     "impacted_modules": content.get("impacted_modules", []),
                     "callers": content.get("callers", []),
-                    "summary": content.get("summary", ""),
+                    "summary": scrub(content.get("summary", "")),
                 }
 
         if tool_name == "analyze_commit_intelligence":
             if isinstance(content, dict):
                 return {
                     "type": "commit_intelligence",
-                    "commit_hash": content.get("commit_hash", ""),
-                    "risk_assessment": content.get("risk_assessment", ""),
+                    "commit_hash": scrub(content.get("commit_hash", "")),
+                    "risk_assessment": scrub(content.get("risk_assessment", "")),
                     "risk_reasons": content.get("risk_reasons", []),
                     "dependency_changes": content.get("dependency_changes", []),
                     "affected_services": content.get("affected_services", []),
@@ -107,7 +108,7 @@ def parse_event(raw_line: str) -> dict | None:
                     "patch": content.get("patch", ""),
                     "files_modified": content.get("files_modified", []),
                     "lines_changed": content.get("lines_changed", 0),
-                    "explanation": content.get("explanation", ""),
+                    "explanation": scrub(content.get("explanation", "")),
                 }
 
         if tool_name == "analyze_regression_risk":
@@ -117,35 +118,35 @@ def parse_event(raw_line: str) -> dict | None:
                     "risk_score": content.get("risk_score", 0),
                     "risk_level": content.get("risk_level", ""),
                     "downstream_callers": content.get("downstream_callers", []),
-                    "test_coverage": content.get("test_coverage", ""),
+                    "test_coverage": scrub(content.get("test_coverage", "")),
                     "suggested_tests": content.get("suggested_tests", []),
-                    "risk_explanation": content.get("risk_explanation", ""),
+                    "risk_explanation": scrub(content.get("risk_explanation", "")),
                 }
 
         # Generic tool_result
         return {
             "type": "tool_result",
             "tool": tool_name,
-            "content": content_raw[:2000] if isinstance(content_raw, str) else str(content_raw)[:2000],
+            "content": scrub(content_raw[:2000]) if isinstance(content_raw, str) else str(content_raw)[:2000],
         }
 
     if msg_type == "assistant":
         return {
             "type": "assistant_message",
-            "content": msg.get("content", ""),
+            "content": scrub(msg.get("content", "")),
             "stop_reason": msg.get("stopReason", ""),
         }
 
     if msg_type == "system":
         subtype = msg.get("subtype", "")
         if subtype == "session_end":
-            return {"type": "complete", "content": msg.get("content", "")}
-        return {"type": "system", "subtype": subtype, "content": msg.get("content", "")}
+            return {"type": "complete", "content": scrub(msg.get("content", ""))}
+        return {"type": "system", "subtype": subtype, "content": scrub(msg.get("content", ""))}
 
     if msg_type == "step":
         return {"type": "step", "step": msg.get("step", ""), "summary": msg.get("summary", "")}
 
     if msg_type == "error":
-        return {"type": "error", "message": msg.get("message", "")}
+        return {"type": "error", "message": scrub(msg.get("message", ""))}
 
     return None

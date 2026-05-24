@@ -27,15 +27,18 @@ export default function HomePage() {
         body: JSON.stringify({ repo_url: repoUrl, error_text: errorText, github_token: githubToken }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const { session_id } = await res.json();
+      const data = await res.json();
+      const id = data.session_id;
+      const token = data.review_token;
+      sessionStorage.setItem(`tracefix-review-token:${id}`, token);
 
-      await fetch(`${backendUrl}/api/sessions/${session_id}/run`, {
+      await fetch(`${backendUrl}/api/sessions/${id}/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo_url: repoUrl, error_text: errorText, github_token: githubToken }),
       });
 
-      router.push(`/session/${session_id}`);
+      router.push(`/session/${id}`);
     } catch (e) {
       setErr(String(e));
       setLoading(false);

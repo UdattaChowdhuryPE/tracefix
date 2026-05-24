@@ -2,11 +2,14 @@ import asyncio
 import json
 import os
 import uuid
+from urllib.parse import urlparse
 from pathlib import Path
 
 from session_manager import session_manager
 from escalation_handler import escalation_handler
 from stream_parser import parse_event
+from secret_utils import scrub
+from github_client import create_pr
 
 RUNNER_DIR = Path(__file__).parent.parent / "runner"
 
@@ -73,7 +76,6 @@ This is a regression from a commit. Proceed with:
 STARTING CONDITIONS:
 ====================
 GitHub Repository: {repo_url}
-GitHub Token: {github_token}
 
 Error / Stack Trace:
 {error_text}
@@ -83,22 +85,34 @@ NOW: Call triage_classifier immediately with the error_text and stack_trace abov
 """
 
 
+def repo_full_name_from_url(repo_url: str) -> str:
+    parsed = urlparse(repo_url)
+    path = parsed.path.strip("/")
+    if path.endswith(".git"):
+        path = path[:-4]
+    return path
+
+
 async def run_agent(
     session_id: str,
     repo_url: str,
     error_text: str,
     github_token: str,
 ) -> None:
-    prompt = build_investigation_prompt(repo_url, error_text, github_token)
+    prompt = build_investigation_prompt(repo_url, scrub(error_text), github_token)
     env = {
         **os.environ,
         "TRACEFIX_PROMPT": prompt,
         "TRACEFIX_SESSION_ID": session_id,
         "GITHUB_TOKEN": github_token,
         "TRACEFIX_BACKEND_URL": os.environ.get("TRACEFIX_BACKEND_URL", "http://localhost:8000"),
+        "INTERNAL_API_SECRET": os.environ.get("INTERNAL_API_SECRET", ""),
     }
 
-    session_manager.update(session_id, status="running")
+    await session_manager.update(session_id, status="running", repo_url=repo_url)
+
+    AGENT_TIMEOUT = int(os.environ.get("AGENT_TIMEOUT_SECONDS", "660"))
+    proc = None
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -111,40 +125,26 @@ async def run_agent(
         )
 
         stderr_lines = []
+        patch_payload = None
 
         # Read stdout (NDJSON events) and stderr (PROGRESS lines) concurrently
         async def read_stdout():
+            nonlocal patch_payload
             assert proc.stdout
             async for raw_line in proc.stdout:
                 line = raw_line.decode().strip()
                 if not line:
                     continue
 
-                # Check if this is an escalation result from request_human_review
-                if '"request_human_review"' in line or '"escalation"' in line:
-                    event = parse_event(line)
-                    if event and event.get("type") == "escalation":
-                        # Register escalation and broadcast to frontend
-                        escalation_handler.register(session_id, event)
-                        await session_manager.broadcast(session_id, event)
-                        continue
-
                 event = parse_event(line)
                 if event:
-                    # Emit a step event when a tool_call is received
-                    if event.get("type") == "tool_call":
-                        tool_name = event.get("tool", "")
-                        if tool_name in TOOL_TO_STEP:
-                            step_name, summary = TOOL_TO_STEP[tool_name]
-                            await session_manager.broadcast(session_id, {
-                                "type": "step",
-                                "step": step_name,
-                                "summary": summary,
-                            })
+                    # Capture patch_ready payload for later PR creation
+                    if event.get("type") == "patch_ready":
+                        patch_payload = event
 
                     await session_manager.broadcast(session_id, event)
                     if event.get("type") == "complete":
-                        session_manager.update(session_id, status="complete")
+                        await session_manager.update(session_id, status="complete", patch=patch_payload)
 
         async def read_stderr():
             assert proc.stderr
@@ -158,16 +158,36 @@ async def run_agent(
                     except Exception:
                         pass
                 else:
-                    # Capture non-PROGRESS stderr for error reporting
                     stderr_lines.append(line)
 
-        await asyncio.gather(read_stdout(), read_stderr())
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(read_stdout(), read_stderr()),
+                timeout=AGENT_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            if proc and proc.returncode is None:
+                proc.terminate()
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    proc.kill()
+                    await proc.wait()
+            await session_manager.update(session_id, status="error")
+            escalation_handler.clear(session_id)
+            await session_manager.broadcast(session_id, {
+                "type": "error",
+                "message": f"Agent timed out after {AGENT_TIMEOUT}s",
+            })
+            return
+
         await proc.wait()
 
         if proc.returncode != 0:
-            session_manager.update(session_id, status="error")
-            # Include last few stderr lines in error message for diagnostics
-            detail = "\n".join(stderr_lines[-20:]) if stderr_lines else "(no stderr captured)"
+            await session_manager.update(session_id, status="error")
+            escalation_handler.clear(session_id)
+            # Include last few stderr lines in error message for diagnostics (scrubbed)
+            detail = "\n".join(scrub(line) for line in stderr_lines[-20:]) if stderr_lines else "(no stderr captured)"
             await session_manager.broadcast(
                 session_id, {
                     "type": "error",
@@ -176,9 +196,46 @@ async def run_agent(
                 }
             )
         else:
-            session_manager.update(session_id, status="complete")
-            await session_manager.broadcast(session_id, {"type": "complete"})
+            if github_token and patch_payload:
+                repo_full_name = repo_full_name_from_url(repo_url)
+                branch_name = f"tracefix/{session_id[:8]}"
+                pr_result = create_pr(
+                    github_token,
+                    repo_full_name,
+                    branch_name,
+                    patch_payload.get("patch", ""),
+                    title=f"TraceFix fix for {repo_full_name}",
+                    body=(
+                        "Automated root-cause investigation completed.\n\n"
+                        f"Session: {session_id}\n"
+                        f"Repo: {repo_url}\n"
+                        f"Patch summary: {patch_payload.get('explanation', '')}"
+                    ),
+                )
+                if pr_result.get("error"):
+                    await session_manager.update(session_id, status="error")
+                    escalation_handler.clear(session_id)
+                    await session_manager.broadcast(
+                        session_id,
+                        {
+                            "type": "error",
+                            "message": pr_result["error"],
+                        },
+                    )
+                    return
+
+                await session_manager.update(session_id, status="complete", result=pr_result)
+                escalation_handler.clear(session_id)
+                await session_manager.broadcast(session_id, {"type": "pr_created", **pr_result})
+                await session_manager.broadcast(session_id, {"type": "complete", **pr_result})
+            else:
+                await session_manager.update(session_id, status="complete")
+                escalation_handler.clear(session_id)
+                await session_manager.broadcast(session_id, {"type": "complete"})
 
     except Exception as e:
-        session_manager.update(session_id, status="error")
+        if proc and proc.returncode is None:
+            proc.kill()
+        await session_manager.update(session_id, status="error")
+        escalation_handler.clear(session_id)
         await session_manager.broadcast(session_id, {"type": "error", "message": str(e)})

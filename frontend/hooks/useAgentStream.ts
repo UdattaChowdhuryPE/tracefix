@@ -12,6 +12,7 @@ export type MemoryMatch = {
 
 export type AgentEvent =
   | { type: "thinking"; text: string }
+  | { type: "text_delta"; text: string }
   | { type: "tool_call"; tool: string; args: unknown }
   | { type: "tool_result"; tool: string; content: string }
   | { type: "triage_result"; is_regression: boolean; category: string; confidence: number; suggested_approach: string; reason: string }
@@ -25,18 +26,24 @@ export type AgentEvent =
   | { type: "regression_risk"; risk_score: number; risk_level: string; downstream_callers: string[]; test_coverage: string; suggested_tests: string[]; risk_explanation: string }
   | { type: "step"; step: string; summary?: string; ts?: string }
   | { type: "assistant_message"; content: string; stop_reason: string }
+  | { type: "pr_created"; pr_url: string; pr_number: number; branch: string }
   | { type: "complete"; content?: string; pr_url?: string }
   | { type: "error"; message: string }
   | { type: "session_state"; status: string }
   | { type: "ping" };
 
-export function useAgentStream(sessionId: string) {
+export function useAgentStream(sessionId: string, reviewToken: string = "") {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [escalation, setEscalation] = useState<Extract<AgentEvent, { type: "escalation" }> | null>(null);
   const [triageResult, setTriageResult] = useState<Extract<AgentEvent, { type: "triage_result" }> | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const reviewTokenRef = useRef(reviewToken);
+
+  useEffect(() => {
+    reviewTokenRef.current = reviewToken;
+  }, [reviewToken]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -67,7 +74,10 @@ export function useAgentStream(sessionId: string) {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
     await fetch(`${backendUrl}/api/sessions/${sessionId}/review`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Review-Token": reviewTokenRef.current,
+      },
       body: JSON.stringify({ decision, guidance }),
     });
   };

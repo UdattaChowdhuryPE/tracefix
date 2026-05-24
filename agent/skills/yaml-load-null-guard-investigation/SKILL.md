@@ -3,12 +3,11 @@ name: yaml-load-null-guard-investigation
 description: Investigates and fixes TypeError crashes caused by js-yaml's yaml.load() returning null for empty/comment-only YAML files. Adds null guard after yaml.load() calls to prevent null propagation to property access. Applies to any TypeScript/JavaScript codebase using js-yaml where parsed YAML objects are used without null checks.
 learned_from: task:f5daac41-eb44-40c4-a7a2-8c3a136fdb47
 learned_at: '2026-05-22T18:25:07.234Z'
-confidence: 0.57
-usage_count: 18
+confidence: 0.52
+usage_count: 19
 success_count: 6
-failure_count: 12
+failure_count: 13
 negative_examples:
-  - 'Push to GitHub failed with 403 — no write token provided. Investigation fully complete and patch committed locally (72a92f5 on tracefix/23bb53a). Outcome is partial: fix ready but not merged. This is the 7th consecutive session blocked by the same access issue.'
   - Push to GitHub failed 403 — no write token provided. Investigation 100% complete. Patch committed locally (afbb0ab on tracefix/session8-yaml-null-guard). PR body written to workspace/tracefix-pr-session8.md. This is the 8th consecutive session blocked by missing write access.
   - 'Push to GitHub failed with 403 — no write token provided. Investigation fully complete and patch committed locally (97d6393 on tracefix/session9-yaml-null-guard). Outcome is partial: fix ready but not merged. This is the 9th consecutive session blocked by the same access issue.'
   - 'Push to GitHub failed with 403 — no write token provided. Investigation fully complete and patch committed locally (72933eb on tracefix/session10-yaml-null-guard). Outcome is partial: fix ready but not merged. This is the 10th consecutive session blocked by the same access issue.'
@@ -18,6 +17,7 @@ negative_examples:
   - Push to GitHub failed 403 — no write token provided. Investigation 100% complete. Patch committed locally (0b7e1e8 on tracefix/session13-yaml-null-guard). PR body written to workspace/tracefix-pr-session13.md. This is the 13th consecutive session blocked by the same access issue.
   - Push to GitHub failed — no write token provided (15th consecutive session with same blocker)
   - Push to GitHub failed with 403 — no write access token provided. Patch is complete, committed, and ready at a89e8eb on branch tracefix/session16-yaml-null-guard.
+  - Fix is proven and ready — blocked only by missing GitHub write token. request_human_review tool has known Python syntax error. Escalated via direct output instead.
 ---
 ## Steps
 1. Confirmed offending commit 23bb53a bumped pi-agent-core from 0.55.4 to 0.70.2. Stack trace src/agent/core.ts:142 is internal to pi-agent-core. The crash is in src/loader.ts resolveInheritance() where yaml.load() can return null/undefined and null.tools causes TypeError.

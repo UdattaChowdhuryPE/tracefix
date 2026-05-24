@@ -26,6 +26,7 @@ async def test_create_session(client):
     assert r.status_code == 200
     data = r.json()
     assert "session_id" in data
+    assert "review_token" in data
 
 
 async def test_get_session_not_found(client):
@@ -39,39 +40,66 @@ async def test_get_session_found(client):
     r = await client.get(f"/api/sessions/{session_id}")
     assert r.status_code == 200
     assert r.json()["status"] == "created"
+    assert "review_token" not in r.json()
+    assert "error_text" not in r.json()
 
 
 async def test_submit_review_session_not_found(client):
-    r = await client.post("/api/sessions/bad-id/review", json={"decision": "approve"})
+    r = await client.post("/api/sessions/bad-id/review", json={"decision": "approve"}, headers={"X-Review-Token": "bad"})
     assert r.status_code == 404
 
 
 async def test_submit_review_ok(client):
     create = await client.post("/api/sessions", json={"repo_url": "https://github.com/a/b", "error_text": "err"})
-    session_id = create.json()["session_id"]
-    r = await client.post(f"/api/sessions/{session_id}/review", json={"decision": "approve", "guidance": ""})
+    session_data = create.json()
+    session_id = session_data["session_id"]
+    review_token = session_data["review_token"]
+    r = await client.post(f"/api/sessions/{session_id}/review", json={"decision": "approve", "guidance": ""}, headers={"X-Review-Token": review_token})
     assert r.status_code == 200
     assert r.json() == {"ok": True}
+
+
+async def test_submit_review_wrong_token(client):
+    create = await client.post("/api/sessions", json={"repo_url": "https://github.com/a/b", "error_text": "err"})
+    session_id = create.json()["session_id"]
+    r = await client.post(f"/api/sessions/{session_id}/review", json={"decision": "approve"}, headers={"X-Review-Token": "wrong"})
+    assert r.status_code == 403
 
 
 async def test_internal_escalate(client):
-    create = await client.post("/api/sessions", json={"repo_url": "https://github.com/a/b", "error_text": "err"})
-    session_id = create.json()["session_id"]
-    r = await client.post(
-        f"/internal/escalate/{session_id}",
-        json={"reason": "low confidence", "confidence": 0.4, "hypothesis": "maybe X", "evidence": ""},
-    )
-    assert r.status_code == 200
-    assert r.json() == {"ok": True}
+    with patch.dict(os.environ, {"INTERNAL_API_SECRET": "test-secret"}):
+        create = await client.post("/api/sessions", json={"repo_url": "https://github.com/a/b", "error_text": "err"})
+        session_id = create.json()["session_id"]
+        r = await client.post(
+            f"/internal/escalate/{session_id}",
+            json={"reason": "low confidence", "confidence": 0.4, "hypothesis": "maybe X", "evidence": ""},
+            headers={"X-Internal-Secret": "test-secret"},
+        )
+        assert r.status_code == 200
+        assert r.json() == {"ok": True}
+
+
+async def test_internal_escalate_wrong_secret(client):
+    with patch.dict(os.environ, {"INTERNAL_API_SECRET": "test-secret"}):
+        create = await client.post("/api/sessions", json={"repo_url": "https://github.com/a/b", "error_text": "err"})
+        session_id = create.json()["session_id"]
+        r = await client.post(
+            f"/internal/escalate/{session_id}",
+            json={"reason": "low confidence", "confidence": 0.4, "hypothesis": "maybe X", "evidence": ""},
+            headers={"X-Internal-Secret": "wrong-secret"},
+        )
+        assert r.status_code == 403
 
 
 async def test_internal_get_decision_pending(client):
-    create = await client.post("/api/sessions", json={"repo_url": "https://github.com/a/b", "error_text": "err"})
-    session_id = create.json()["session_id"]
-    await client.post(
-        f"/internal/escalate/{session_id}",
-        json={"reason": "low confidence", "confidence": 0.4, "hypothesis": "", "evidence": ""},
-    )
-    r = await client.get(f"/internal/escalate/{session_id}/decision")
-    assert r.status_code == 200
-    assert r.json()["decision"] == "pending"
+    with patch.dict(os.environ, {"INTERNAL_API_SECRET": "test-secret"}):
+        create = await client.post("/api/sessions", json={"repo_url": "https://github.com/a/b", "error_text": "err"})
+        session_id = create.json()["session_id"]
+        await client.post(
+            f"/internal/escalate/{session_id}",
+            json={"reason": "low confidence", "confidence": 0.4, "hypothesis": "", "evidence": ""},
+            headers={"X-Internal-Secret": "test-secret"},
+        )
+        r = await client.get(f"/internal/escalate/{session_id}/decision", headers={"X-Internal-Secret": "test-secret"})
+        assert r.status_code == 200
+        assert r.json()["decision"] == "pending"

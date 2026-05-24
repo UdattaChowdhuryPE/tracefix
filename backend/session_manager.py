@@ -1,6 +1,8 @@
 import asyncio
+import time
 from typing import Any
 from fastapi import WebSocket
+from db import save_session, load_session
 
 
 class SessionManager:
@@ -8,16 +10,36 @@ class SessionManager:
         self._sessions: dict[str, dict] = {}
         self._connections: dict[str, list[WebSocket]] = {}
 
-    def create(self, session_id: str, meta: dict) -> None:
-        self._sessions[session_id] = {"status": "created", "result": None, **meta}
+    async def create(self, session_id: str, meta: dict) -> None:
+        self._sessions[session_id] = {
+            "session_id": session_id,
+            "status": "created",
+            "result": None,
+            "created_at": time.time(),
+            **meta,
+        }
         self._connections[session_id] = []
+        await save_session(session_id, self._sessions[session_id])
 
-    def get(self, session_id: str) -> dict | None:
-        return self._sessions.get(session_id)
-
-    def update(self, session_id: str, **kwargs) -> None:
+    async def get(self, session_id: str) -> dict | None:
+        # Try cache first
         if session_id in self._sessions:
-            self._sessions[session_id].update(kwargs)
+            return self._sessions[session_id]
+        # Load from DB if not cached
+        data = await load_session(session_id)
+        if data:
+            self._sessions[session_id] = data
+        return data
+
+    async def update(self, session_id: str, **kwargs) -> None:
+        session = self._sessions.get(session_id)
+        if session is None:
+            session = await load_session(session_id)
+            if session is None:
+                return
+            self._sessions[session_id] = session
+        session.update(kwargs)
+        await save_session(session_id, session)
 
     async def connect(self, session_id: str, ws: WebSocket) -> None:
         await ws.accept()

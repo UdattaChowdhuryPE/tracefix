@@ -42,5 +42,11 @@ class EscalationHandler:
             return {"decision": "pending"}
         return self._decisions.get(session_id, {"decision": "approve"})
 
+    def clear(self, session_id: str) -> None:
+        """Clear escalation state on session cancellation."""
+        self._pending.pop(session_id, None)
+        self._decisions.pop(session_id, None)
+        self._payloads.pop(session_id, None)
+
 
 escalation_handler = EscalationHandler()
