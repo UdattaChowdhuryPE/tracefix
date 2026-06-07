@@ -4,19 +4,29 @@ from pathlib import Path
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 import asyncio
+import logging
 import os
 import secrets
+import time
 import uuid
 from contextlib import asynccontextmanager
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from logging_config import configure_logging, current_session_id, current_request_id
 from session_manager import session_manager
 from escalation_handler import escalation_handler
 from agent_runner import run_agent
-from db import init_db, load_all_sessions, load_session_events
+from db import init_db, load_all_sessions, load_session_events, load_session_metrics
+
+# Initialize structured logging
+configure_logging()
+logger = logging.getLogger("tracefix.main")
 
 
 @asynccontextmanager
@@ -31,7 +41,39 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="TraceFix API", lifespan=lifespan)
 
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        request_id = str(uuid.uuid4())
+        current_request_id.set(request_id)
+        
+        # Extract session_id from path if present
+        path_parts = request.url.path.split("/")
+        session_id = None
+        if len(path_parts) > 2 and path_parts[2] != "health":
+            session_id = path_parts[3] if len(path_parts) > 3 else None
+        
+        if session_id:
+            current_session_id.set(session_id)
+        
+        start_time = time.monotonic()
+        response = await call_next(request)
+        duration_ms = int((time.monotonic() - start_time) * 1000)
+        
+        logger.info("http_request", extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+            "session_id": session_id,
+            "request_id": request_id,
+        })
+        
+        return response
+
+
 allowed_origins = os.environ.get("CORS_ALLOW_ORIGINS", "http://localhost:3000").split(",")
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -131,6 +173,13 @@ async def get_session(session_id: str):
     return public_session_view(session)
 
 
+class MetricsResponse(BaseModel):
+    total_events: int
+    by_type: dict
+    tool_durations: dict
+    span_seconds: float
+
+
 @app.get("/api/sessions/{session_id}/events")
 async def get_session_events(session_id: str):
     session = await session_manager.get(session_id)
@@ -138,6 +187,15 @@ async def get_session_events(session_id: str):
         raise HTTPException(404, "Session not found")
     events = await load_session_events(session_id)
     return {"session_id": session_id, "events": events}
+
+
+@app.get("/api/sessions/{session_id}/metrics")
+async def get_session_metrics(session_id: str):
+    session = await session_manager.get(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+    metrics = await load_session_metrics(session_id)
+    return {"session_id": session_id, **metrics}
 
 
 @app.post("/api/sessions/{session_id}/review")
@@ -160,6 +218,9 @@ async def submit_review(session_id: str, body: ReviewDecisionRequest, x_review_t
 
 @app.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
+    current_session_id.set(session_id)
+    logger.info("websocket_connected", extra={"session_id": session_id})
+    
     await session_manager.connect(session_id, websocket)
     try:
         # Send current session state on connect
@@ -171,8 +232,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             await asyncio.sleep(30)
             await websocket.send_json({"type": "ping"})
     except WebSocketDisconnect:
+        logger.info("websocket_disconnected", extra={"session_id": session_id})
         session_manager.disconnect(session_id, websocket)
-    except Exception:
+    except Exception as e:
+        logger.exception("websocket_error", extra={"session_id": session_id, "error": str(e)})
         session_manager.disconnect(session_id, websocket)
 
 

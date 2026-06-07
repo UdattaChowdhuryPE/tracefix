@@ -1,9 +1,12 @@
+import logging
 import os
 import subprocess
 import tempfile
 from pathlib import Path
 from github import Github
 from github.GithubException import GithubException
+
+logger = logging.getLogger("tracefix.github_client")
 
 
 def get_client(token: str) -> Github:
@@ -24,9 +27,12 @@ def create_pr(
     Returns {pr_url, pr_number, branch}.
     """
     g = get_client(token)
+    logger.info("pr_attempt", extra={"repo": repo_full_name, "branch": branch_name})
+    
     try:
         repo = g.get_repo(repo_full_name)
     except GithubException as e:
+        logger.error("pr_repo_not_found", extra={"repo": repo_full_name, "error": str(e)})
         return {"error": f"Repo not found: {e}"}
 
     base_ref = None
@@ -102,8 +108,10 @@ def create_pr(
             stderr = e.stderr.strip() if e.stderr else ""
             stdout = e.stdout.strip() if e.stdout else ""
             detail = stderr or stdout or str(e)
+            logger.error("pr_patch_apply_failed", extra={"repo": repo_full_name, "error": detail})
             return {"error": f"Could not apply or push patch: {detail}"}
         except Exception as e:
+            logger.error("pr_prepare_failed", extra={"repo": repo_full_name, "error": str(e)})
             return {"error": f"Could not prepare PR: {e}"}
 
     # Create PR
@@ -114,6 +122,12 @@ def create_pr(
             head=branch_name,
             base=base_branch,
         )
+        logger.info("pr_created", extra={
+            "repo": repo_full_name,
+            "pr_number": pr.number,
+            "pr_url": pr.html_url,
+        })
         return {"pr_url": pr.html_url, "pr_number": pr.number, "branch": branch_name}
     except GithubException as e:
+        logger.error("pr_creation_failed", extra={"repo": repo_full_name, "error": str(e)})
         return {"error": f"Could not create PR: {e}"}

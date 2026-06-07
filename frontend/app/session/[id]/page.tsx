@@ -11,6 +11,7 @@ import { BlastRadiusMap } from "../../../components/BlastRadiusMap";
 import { PatchProposal } from "../../../components/PatchProposal";
 import { EscalationBanner } from "../../../components/EscalationBanner";
 import { TriageDiagnosisPanel } from "../../../components/TriageDiagnosisPanel";
+import { ObservabilityPanel } from "../../../components/ObservabilityPanel";
 import type { AgentEvent } from "../../../hooks/useAgentStream";
 
 type RiskLevel = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
@@ -30,7 +31,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     const stored = sessionStorage.getItem(`tracefix-review-token:${sessionId}`);
     setReviewToken(stored || "");
   }, [sessionId]);
-  const { events, escalation, triageResult, isComplete, error, resolveEscalation } = useAgentStream(sessionId, reviewToken);
+  const { events, escalation, triageResult, isComplete, error, resolveEscalation, parseErrorCount, reconnectCount } = useAgentStream(sessionId, reviewToken);
 
   const latestMemoryMatch = useMemo(
     () => [...events].reverse().find((e) => e.type === "memory_match") as Extract<AgentEvent, { type: "memory_match" }> | undefined,
@@ -343,6 +344,13 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           )}
         </div>
       </div>
+
+      {/* Observability Panel */}
+      <ObservabilityPanel
+        sessionId={sessionId}
+        parseErrorCount={parseErrorCount}
+        reconnectCount={reconnectCount}
+      />
     </div>
   );
 }

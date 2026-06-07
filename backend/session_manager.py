@@ -1,8 +1,11 @@
 import asyncio
+import logging
 import time
 from typing import Any
 from fastapi import WebSocket
 from db import save_session, load_session, insert_event
+
+logger = logging.getLogger("tracefix.session_manager")
 
 
 class SessionManager:
@@ -20,6 +23,7 @@ class SessionManager:
         }
         self._connections[session_id] = []
         await save_session(session_id, self._sessions[session_id])
+        logger.info("session_created", extra={"session_id": session_id})
 
     async def get(self, session_id: str) -> dict | None:
         # Try cache first
@@ -38,7 +42,19 @@ class SessionManager:
             if session is None:
                 return
             self._sessions[session_id] = session
+        
+        old_status = session.get("status")
         session.update(kwargs)
+        new_status = session.get("status")
+        
+        # Log status transitions
+        if old_status != new_status:
+            logger.info("session_status_transition", extra={
+                "session_id": session_id,
+                "old_status": old_status,
+                "new_status": new_status,
+            })
+        
         await save_session(session_id, session)
 
     async def connect(self, session_id: str, ws: WebSocket) -> None:
@@ -47,9 +63,13 @@ class SessionManager:
 
     def disconnect(self, session_id: str, ws: WebSocket) -> None:
         if session_id in self._connections:
+            before = len(self._connections[session_id])
             self._connections[session_id] = [
                 c for c in self._connections[session_id] if c is not ws
             ]
+            after = len(self._connections[session_id])
+            if before > after:
+                logger.info("websocket_disconnected", extra={"session_id": session_id})
 
     async def broadcast(self, session_id: str, event: dict) -> None:
         await insert_event(session_id, event)
@@ -57,7 +77,12 @@ class SessionManager:
         for ws in self._connections.get(session_id, []):
             try:
                 await ws.send_json(event)
-            except Exception:
+            except Exception as e:
+                logger.warning("websocket_send_failed", extra={
+                    "session_id": session_id,
+                    "event_type": event.get("type"),
+                    "error": str(e),
+                })
                 dead.append(ws)
         for ws in dead:
             self.disconnect(session_id, ws)

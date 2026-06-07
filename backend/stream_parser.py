@@ -1,5 +1,8 @@
 import json
+import logging
 from secret_utils import scrub
+
+logger = logging.getLogger("tracefix.stream_parser")
 
 
 def parse_event(raw_line: str) -> dict | None:
@@ -12,8 +15,11 @@ def parse_event(raw_line: str) -> dict | None:
             try:
                 payload = json.loads(raw_line[len("PROGRESS:"):])
                 return {"type": "step", **payload}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("parse_event_progress_failed", extra={"error": str(e)}, exc_info=True)
+        return None
+    except Exception as e:
+        logger.warning("parse_event_failed", extra={"error": str(e)}, exc_info=True)
         return None
 
     msg_type = msg.get("type", "")

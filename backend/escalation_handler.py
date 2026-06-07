@@ -1,5 +1,8 @@
 import asyncio
+import logging
 from typing import Any
+
+logger = logging.getLogger("tracefix.escalation")
 
 
 class EscalationHandler:
@@ -12,6 +15,10 @@ class EscalationHandler:
         """Called when request_human_review tool signals escalation."""
         self._pending[session_id] = asyncio.Event()
         self._payloads[session_id] = payload
+        logger.info("escalation_registered", extra={
+            "session_id": session_id,
+            "confidence": payload.get("confidence"),
+        })
 
     def is_pending(self, session_id: str) -> bool:
         return session_id in self._pending and not self._pending[session_id].is_set()
@@ -25,14 +32,24 @@ class EscalationHandler:
             return {"decision": "approve", "guidance": ""}
         try:
             await asyncio.wait_for(evt.wait(), timeout=timeout)
+            result = self._decisions.pop(session_id, {"decision": "approve", "guidance": ""})
+            logger.info("escalation_resolved", extra={
+                "session_id": session_id,
+                "decision": result.get("decision"),
+            })
+            return result
         except asyncio.TimeoutError:
+            logger.warning("escalation_timeout_auto_approved", extra={"session_id": session_id})
             return {"decision": "approve", "guidance": "", "note": "timeout_auto_approved"}
-        return self._decisions.pop(session_id, {"decision": "approve", "guidance": ""})
 
     def resolve(self, session_id: str, decision: str, guidance: str = "") -> None:
         self._decisions[session_id] = {"decision": decision, "guidance": guidance}
         if session_id in self._pending:
             self._pending[session_id].set()
+            logger.info("escalation_decision_submitted", extra={
+                "session_id": session_id,
+                "decision": decision,
+            })
 
     def get_decision(self, session_id: str) -> dict | None:
         """For polling by the shell script."""

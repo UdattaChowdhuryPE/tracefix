@@ -1,6 +1,8 @@
 import asyncio
 import json
+import logging
 import os
+import time
 import uuid
 from urllib.parse import urlparse
 from pathlib import Path
@@ -10,6 +12,10 @@ from escalation_handler import escalation_handler
 from stream_parser import parse_event
 from secret_utils import scrub
 from github_client import create_pr
+from db import insert_event
+from logging_config import current_session_id
+
+logger = logging.getLogger("tracefix.agent_runner")
 
 RUNNER_DIR = Path(__file__).parent.parent / "runner"
 
@@ -110,9 +116,17 @@ async def run_agent(
     }
 
     await session_manager.update(session_id, status="running", repo_url=repo_url)
+    current_session_id.set(session_id)  # Set session_id in ContextVar for logging
 
     AGENT_TIMEOUT = int(os.environ.get("AGENT_TIMEOUT_SECONDS", "660"))
+    started_at = time.monotonic()
     proc = None
+    
+    logger.info("agent_started", extra={
+        "session_id": session_id,
+        "repo_url": repo_url,
+        "timeout_seconds": AGENT_TIMEOUT,
+    })
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -128,6 +142,9 @@ async def run_agent(
         patch_payload = None
 
         # Read stdout (NDJSON events) and stderr (PROGRESS lines) concurrently
+        # Track per-tool timing
+        tool_timings = {}
+
         async def read_stdout():
             nonlocal patch_payload
             assert proc.stdout
@@ -138,6 +155,22 @@ async def run_agent(
 
                 event = parse_event(line)
                 if event:
+                    # Track tool timing: record start time on tool_call
+                    if event.get("type") == "tool_call":
+                        tool_name = event.get("tool", "unknown")
+                        tool_timings[tool_name] = time.monotonic()
+                    
+                    # Inject tool_duration_ms on tool_result
+                    if event.get("type") == "tool_result":
+                        tool_name = event.get("tool", "unknown")
+                        if tool_name in tool_timings:
+                            elapsed_ms = int((time.monotonic() - tool_timings[tool_name]) * 1000)
+                            event["tool_duration_ms"] = elapsed_ms
+                            del tool_timings[tool_name]
+                    
+                    # Persist event to database (FIX: this was missing!)
+                    await insert_event(session_id, event)
+                    
                     # Capture patch_ready payload for later PR creation
                     if event.get("type") == "patch_ready":
                         patch_payload = event
@@ -166,6 +199,12 @@ async def run_agent(
                 timeout=AGENT_TIMEOUT,
             )
         except asyncio.TimeoutError:
+            elapsed_ms = int((time.monotonic() - started_at) * 1000)
+            logger.error("agent_timeout", extra={
+                "session_id": session_id,
+                "elapsed_ms": elapsed_ms,
+                "timeout_seconds": AGENT_TIMEOUT,
+            })
             if proc and proc.returncode is None:
                 proc.terminate()
                 try:
@@ -173,7 +212,8 @@ async def run_agent(
                 except asyncio.TimeoutError:
                     proc.kill()
                     await proc.wait()
-            await session_manager.update(session_id, status="error")
+            duration_ms = int((time.monotonic() - started_at) * 1000)
+            await session_manager.update(session_id, status="error", duration_ms=duration_ms)
             escalation_handler.clear(session_id)
             await session_manager.broadcast(session_id, {
                 "type": "error",
@@ -184,18 +224,25 @@ async def run_agent(
         await proc.wait()
 
         if proc.returncode != 0:
-            await session_manager.update(session_id, status="error")
+            duration_ms = int((time.monotonic() - started_at) * 1000)
+            logger.error("agent_exit_nonzero", extra={
+                "session_id": session_id,
+                "returncode": proc.returncode,
+                "duration_ms": duration_ms,
+            })
+            await session_manager.update(session_id, status="error", duration_ms=duration_ms)
             escalation_handler.clear(session_id)
             # Include last few stderr lines in error message for diagnostics (scrubbed)
             detail = "\n".join(scrub(line) for line in stderr_lines[-20:]) if stderr_lines else "(no stderr captured)"
-            await session_manager.broadcast(
-                session_id, {
-                    "type": "error",
-                    "message": f"Agent exited with code {proc.returncode}",
-                    "detail": detail,
-                }
-            )
+            error_event = {
+                "type": "error",
+                "message": f"Agent exited with code {proc.returncode}",
+                "detail": detail,
+            }
+            await insert_event(session_id, error_event)
+            await session_manager.broadcast(session_id, error_event)
         else:
+            duration_ms = int((time.monotonic() - started_at) * 1000)
             if github_token and patch_payload:
                 repo_full_name = repo_full_name_from_url(repo_url)
                 branch_name = f"tracefix/{session_id[:8]}"
@@ -213,29 +260,41 @@ async def run_agent(
                     ),
                 )
                 if pr_result.get("error"):
-                    await session_manager.update(session_id, status="error")
+                    await session_manager.update(session_id, status="error", duration_ms=duration_ms)
                     escalation_handler.clear(session_id)
-                    await session_manager.broadcast(
-                        session_id,
-                        {
-                            "type": "error",
-                            "message": pr_result["error"],
-                        },
-                    )
+                    error_event = {
+                        "type": "error",
+                        "message": pr_result["error"],
+                    }
+                    await insert_event(session_id, error_event)
+                    await session_manager.broadcast(session_id, error_event)
                     return
 
-                await session_manager.update(session_id, status="complete", result=pr_result)
+                await session_manager.update(session_id, status="complete", result=pr_result, duration_ms=duration_ms)
                 escalation_handler.clear(session_id)
-                await session_manager.broadcast(session_id, {"type": "pr_created", **pr_result})
-                await session_manager.broadcast(session_id, {"type": "complete", **pr_result})
+                pr_created_event = {"type": "pr_created", **pr_result}
+                await insert_event(session_id, pr_created_event)
+                await session_manager.broadcast(session_id, pr_created_event)
+                complete_event = {"type": "complete", **pr_result}
+                await insert_event(session_id, complete_event)
+                await session_manager.broadcast(session_id, complete_event)
             else:
-                await session_manager.update(session_id, status="complete")
+                await session_manager.update(session_id, status="complete", duration_ms=duration_ms)
                 escalation_handler.clear(session_id)
-                await session_manager.broadcast(session_id, {"type": "complete"})
+                complete_event = {"type": "complete"}
+                await insert_event(session_id, complete_event)
+                await session_manager.broadcast(session_id, complete_event)
 
     except Exception as e:
+        duration_ms = int((time.monotonic() - started_at) * 1000)
+        logger.exception("agent_unexpected_error", extra={
+            "session_id": session_id,
+            "duration_ms": duration_ms,
+        })
         if proc and proc.returncode is None:
             proc.kill()
-        await session_manager.update(session_id, status="error")
+        await session_manager.update(session_id, status="error", duration_ms=duration_ms)
         escalation_handler.clear(session_id)
-        await session_manager.broadcast(session_id, {"type": "error", "message": str(e)})
+        error_event = {"type": "error", "message": str(e)}
+        await insert_event(session_id, error_event)
+        await session_manager.broadcast(session_id, error_event)
