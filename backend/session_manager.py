@@ -2,7 +2,7 @@ import asyncio
 import time
 from typing import Any
 from fastapi import WebSocket
-from db import save_session, load_session
+from db import save_session, load_session, insert_event
 
 
 class SessionManager:
@@ -52,6 +52,7 @@ class SessionManager:
             ]
 
     async def broadcast(self, session_id: str, event: dict) -> None:
+        await insert_event(session_id, event)
         dead: list[WebSocket] = []
         for ws in self._connections.get(session_id, []):
             try:

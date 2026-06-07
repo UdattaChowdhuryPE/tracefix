@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from session_manager import session_manager
 from escalation_handler import escalation_handler
 from agent_runner import run_agent
-from db import init_db, load_all_sessions
+from db import init_db, load_all_sessions, load_session_events
 
 
 @asynccontextmanager
@@ -129,6 +129,15 @@ async def get_session(session_id: str):
     if session is None:
         raise HTTPException(404, "Session not found")
     return public_session_view(session)
+
+
+@app.get("/api/sessions/{session_id}/events")
+async def get_session_events(session_id: str):
+    session = await session_manager.get(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+    events = await load_session_events(session_id)
+    return {"session_id": session_id, "events": events}
 
 
 @app.post("/api/sessions/{session_id}/review")

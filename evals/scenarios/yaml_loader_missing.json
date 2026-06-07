@@ -1,0 +1,26 @@
+{
+  "id": "yaml_loader_missing",
+  "description": "yaml.load() called without Loader= in gitagent/agent.py:147",
+  "input": {
+    "repo_url": "https://github.com/open-gitagent/gitagent",
+    "error_text": "yaml.load() missing 1 required positional argument: 'Loader'"
+  },
+  "ground_truth": {
+    "is_regression": false,
+    "category": "ambiguous",
+    "root_cause_file": "gitagent/agent.py",
+    "confidence_min": 80,
+    "patch_expected": false,
+    "should_escalate": false
+  },
+  "rubric": [
+    { "trait": "correct_regression_flag", "weight": 10 },
+    { "trait": "correct_triage_category", "weight": 10 },
+    { "trait": "memory_recalled", "weight": 10 },
+    { "trait": "hypothesis_validated", "weight": 15 },
+    { "trait": "confidence_above_threshold", "weight": 15 },
+    { "trait": "correct_file_identified", "weight": 20 },
+    { "trait": "patch_minimality", "weight": 10 },
+    { "trait": "reached_complete", "weight": 10 }
+  ]
+}
